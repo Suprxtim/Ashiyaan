@@ -26,7 +26,7 @@ const NOTIF_ROUTE: Record<string, (data: Record<string, string>) => string> = {
   complaint_update: (d) => `/complaints/${d.complaint_id}`,
   new_complaint:    (d) => `/complaints/${d.complaint_id}`,
   payment_due:      ()  => '/payments',
-  sos_alert:        () => `/emergency`,
+  sos_alert:        ()  => '/emergency',   // overridden for managers below
   announcement:     ()  => '/community',
 }
 
@@ -80,12 +80,18 @@ export default function NotificationsPage() {
   }, [userId, qc])
 
   async function handleNotifClick(notif: typeof notifications[number]) {
-    // Mark as read
     if (!notif.is_read) {
       await markOneRead(notif.id)
       qc.invalidateQueries({ queryKey: ['notifications', userId] })
     }
-    // Navigate to relevant page
+
+    // SOS alerts route to the incident management page for managers
+    if (notif.type === 'sos_alert') {
+      const isManager = user?.profile.role === 'warden' || user?.profile.role === 'manager'
+      navigate(isManager ? '/manager/sos' : '/emergency')
+      return
+    }
+
     const routeFn = NOTIF_ROUTE[notif.type]
     if (routeFn) {
       const data = (notif.data ?? {}) as Record<string, string>
