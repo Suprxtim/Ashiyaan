@@ -9,26 +9,43 @@ import { BottomNav } from './BottomNav'
 import { Sidebar } from './Sidebar'
 import { OfflineBanner } from '../shared/OfflineBanner'
 
-// Generates a 6-beep two-tone alarm via Web Audio API
+// Singleton AudioContext — browsers suspend audio until a user gesture has
+// occurred. We create it once, unlock it on the first interaction, then
+// resume() before scheduling oscillators so the alarm actually plays.
+let _audioCtx: AudioContext | null = null
+
+function getAudioCtx(): AudioContext {
+  if (!_audioCtx) _audioCtx = new AudioContext()
+  return _audioCtx
+}
+
+function unlockAudio() {
+  try {
+    const ctx = getAudioCtx()
+    if (ctx.state === 'suspended') ctx.resume()
+  } catch {}
+}
+
 function playAlarm() {
   try {
-    const ctx = new AudioContext()
-    for (let i = 0; i < 6; i++) {
-      const osc  = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'square'
-      osc.frequency.value = i % 2 === 0 ? 880 : 1100
-      const t = ctx.currentTime + i * 0.3
-      gain.gain.setValueAtTime(0.15, t)
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
-      osc.start(t)
-      osc.stop(t + 0.26)
-    }
-    setTimeout(() => ctx.close(), 2200)
+    const ctx = getAudioCtx()
+    ctx.resume().then(() => {
+      for (let i = 0; i < 6; i++) {
+        const osc  = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.type = 'square'
+        osc.frequency.value = i % 2 === 0 ? 880 : 1100
+        const t = ctx.currentTime + i * 0.3
+        gain.gain.setValueAtTime(0.15, t)
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
+        osc.start(t)
+        osc.stop(t + 0.26)
+      }
+    })
   } catch {
-    // Browser blocked audio (autoplay policy) — notification toast still shows
+    // Web Audio not supported — toast still fires
   }
 }
 
@@ -38,6 +55,18 @@ function ManagerSosAlarm() {
   const user      = useAuthStore((s) => s.user)
   const isManager = user?.profile.role === 'warden' || user?.profile.role === 'manager'
   const hostelId  = user?.profile.hostel_id ?? ''
+
+  // Unlock the AudioContext on the first tap/click so the alarm can play
+  // when the realtime event fires (which has no associated user gesture).
+  useEffect(() => {
+    if (!isManager) return
+    document.addEventListener('touchstart', unlockAudio, { once: true, passive: true })
+    document.addEventListener('click',      unlockAudio, { once: true })
+    return () => {
+      document.removeEventListener('touchstart', unlockAudio)
+      document.removeEventListener('click',      unlockAudio)
+    }
+  }, [isManager])
 
   useEffect(() => {
     if (!isManager || !hostelId) return
