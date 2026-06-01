@@ -30,7 +30,8 @@ const EmergencyPage   = lazy(() => import('@/features/emergency/pages/EmergencyP
 
 const ProfilePage     = lazy(() => import('@/features/profile/pages/ProfilePage'))
 
-const ManagerDashboardPage = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
+const ManagerDashboardPage    = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
+const ManagerComplaintsPage   = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
 const ExpensesPage         = lazy(() => import('@/features/expenses/pages/ExpensesPage'))
 const ScanPage             = lazy(() => import('@/features/gate-pass/pages/ScanPage'))
 const CommunityPage        = lazy(() => import('@/features/community/pages/CommunityPage'))
@@ -172,7 +173,8 @@ export const router = createBrowserRouter([
               { path: '/notifications',       element: <NotificationsPage />    },
 
               // Manager/warden routes
-              { path: '/manager', element: <ManagerDashboardPage /> },
+              { path: '/manager',             element: <ManagerDashboardPage />  },
+              { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
             ],
           },
         ],

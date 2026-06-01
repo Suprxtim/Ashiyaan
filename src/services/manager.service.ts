@@ -109,3 +109,41 @@ export async function updateComplaintStatus(
     .eq('id', id)
   if (error) throw error
 }
+
+export async function getAllHostelComplaints(hostelId: string, status?: ComplaintStatus) {
+  let q = supabase
+    .from('complaints')
+    .select('*, profiles(full_name, room_number, avatar_url)')
+    .eq('hostel_id', hostelId)
+    .order('created_at', { ascending: false })
+
+  if (status) q = q.eq('status', status)
+  const { data } = await q
+  return data ?? []
+}
+
+export async function updateComplaintWithNote(
+  id: string,
+  newStatus: ComplaintStatus,
+  note: string,
+  updatedBy: string,
+) {
+  const { error: complaintErr } = await supabase
+    .from('complaints')
+    .update({
+      status: newStatus,
+      ...(newStatus === 'resolved' ? { resolution_note: note || null } : {}),
+    })
+    .eq('id', id)
+  if (complaintErr) throw complaintErr
+
+  const { error: updateErr } = await supabase
+    .from('complaint_updates')
+    .insert({
+      complaint_id: id,
+      new_status:   newStatus,
+      note:         note || null,
+      updated_by:   updatedBy,
+    })
+  if (updateErr) throw updateErr
+}

@@ -22,11 +22,11 @@ const SHARED_TABS = [
 ]
 
 const MANAGER_TABS = [
-  { label: 'Dashboard',  path: '/manager',          Icon: LayoutDashboard },
-  { label: 'Scan',       path: '/scan',             Icon: ScanLine        },
-  { label: 'Complaints', path: '/complaints',       Icon: Wrench          },
-  { label: 'Payments',   path: '/manager/payments', Icon: Receipt         },
-  { label: 'Profile',    path: '/profile',          Icon: User            },
+  { label: 'Dashboard',  path: '/manager',             Icon: LayoutDashboard },
+  { label: 'Scan',       path: '/scan',                Icon: ScanLine        },
+  { label: 'Complaints', path: '/manager/complaints',  Icon: Wrench          },
+  { label: 'Payments',   path: '/manager/payments',    Icon: Receipt         },
+  { label: 'Profile',    path: '/profile',             Icon: User            },
 ]
 
 export function BottomNav() {
