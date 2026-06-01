@@ -1,13 +1,15 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Clock, CheckCircle2, AlertCircle, Star } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Clock, CheckCircle2, AlertCircle, Star, Trash2 } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/store/auth.store'
 import { useComplaintDetail } from '../hooks/useComplaints'
-import { rateComplaint } from '@/services/complaints.service'
+import { rateComplaint, deleteComplaint } from '@/services/complaints.service'
 import { TopBar } from '@/components/layout/TopBar'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Button } from '@/components/ui/Button'
 import { formatDate, formatTime } from '@/lib/utils'
 import type { Database } from '@/types/database.types'
 
@@ -23,9 +25,12 @@ const STATUS_CONFIG: Record<ComplaintStatus, { label: string; Icon: React.Elemen
 
 export default function ComplaintDetailPage() {
   const { id }  = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const qc      = useQueryClient()
+  const user    = useAuthStore((s) => s.user)
   const { data: complaint, isLoading } = useComplaintDetail(id ?? '')
-  const [hoverRating, setHoverRating] = useState(0)
+  const [hoverRating,    setHoverRating]    = useState(0)
+  const [confirmDelete,  setConfirmDelete]  = useState(false)
 
   const { mutate: submitRating, isPending: rating } = useMutation({
     mutationFn: (r: number) => rateComplaint(id!, r),
@@ -33,6 +38,16 @@ export default function ComplaintDetailPage() {
       toast.success('Thanks for your feedback!')
       qc.invalidateQueries({ queryKey: ['complaint', id] })
     },
+  })
+
+  const { mutate: removComplaint, isPending: deleting } = useMutation({
+    mutationFn: () => deleteComplaint(id!, user!.id),
+    onSuccess: () => {
+      toast.success('Complaint deleted')
+      qc.invalidateQueries({ queryKey: ['complaints', user?.id] })
+      navigate('/complaints', { replace: true })
+    },
+    onError: () => toast.error('Failed to delete complaint'),
   })
 
   if (isLoading) {
@@ -144,6 +159,47 @@ export default function ComplaintDetailPage() {
           <div className="bg-success-light rounded-card p-4">
             <p className="text-[12px] font-semibold text-success mb-1">Resolution Note</p>
             <p className="text-[14px] text-text-primary">{complaint.resolution_note}</p>
+          </div>
+        )}
+
+        {/* ── Delete — only for own submitted complaints ── */}
+        {complaint.user_id === user?.id && complaint.status === 'submitted' && (
+          <div className="bg-surface rounded-card shadow-card p-4">
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-2 text-danger text-[14px] font-semibold w-full justify-center py-1 hover:opacity-80 transition-opacity"
+              >
+                <Trash2 size={16} />
+                Delete Complaint
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-[14px] font-semibold text-text-primary text-center">
+                  Delete this complaint?
+                </p>
+                <p className="text-[13px] text-text-secondary text-center">
+                  This cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Keep it
+                  </Button>
+                  <Button
+                    variant="danger"
+                    fullWidth
+                    loading={deleting}
+                    onClick={() => removComplaint()}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

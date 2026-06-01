@@ -73,3 +73,12 @@ export async function rateComplaint(id: string, rating: number) {
     .eq('id', id)
   if (error) throw error
 }
+
+export async function deleteComplaint(id: string, userId: string) {
+  const { error } = await supabase
+    .from('complaints')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)   // RLS double-check: only the owner can delete
+  if (error) throw error
+}
