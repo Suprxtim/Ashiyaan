@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"c:\\\\Users\\\\USER\\\\Desktop\\\\ashiyaan-temp\")",
+      "Read(//c/Users/USER/Desktop/ashiyaan-temp/**)",
+      "PowerShell($src = \"c:\\\\Users\\\\USER\\\\Desktop\\\\ashiyaan-temp\"; $dst = \"c:\\\\Users\\\\USER\\\\Desktop\\\\Ashiyaan\"; $items = @\\(\"eslint.config.js\",\"index.html\",\"package.json\",\"tsconfig.app.json\",\"tsconfig.json\",\"tsconfig.node.json\",\"vite.config.ts\",\"public\",\"src\"\\); foreach \\($item in $items\\) { Copy-Item \"$src\\\\$item\" \"$dst\\\\\" -Recurse -Force }; Remove-Item $src -Recurse -Force; Write-Output \"Done\")"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}
