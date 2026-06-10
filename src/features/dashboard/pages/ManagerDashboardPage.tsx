@@ -1,16 +1,16 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Bell, LogOut, Users, AlertTriangle,
+  Bell, LogOut, Users, AlertTriangle, IndianRupee,
   UtensilsCrossed, ChevronRight, CheckCircle2, Clock, Flame, ScanLine,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
 import {
   getManagerStats, getMessOccupancy, getLiveGateMovements,
-  getOpenComplaints, updateComplaintStatus,
+  getOpenComplaints, updateComplaintStatus, getPendingPayments,
 } from '@/services/manager.service'
-import { formatTime, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
+import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 import type { Database } from '@/types/database.types'
@@ -29,6 +29,7 @@ export default function ManagerDashboardPage() {
   const qc         = useQueryClient()
   const user       = useAuthStore((s) => s.user)
   const hostelId   = user?.profile.hostel_id ?? ''
+  const isPg       = user?.hostel?.property_type === 'pg'
 
   const initials    = user ? getInitials(user.profile.full_name) : '?'
   const avatarColor = user ? getAvatarColor(user.profile.full_name) : '#1A3D3D'
@@ -50,7 +51,7 @@ export default function ManagerDashboardPage() {
   const { data: gateMovements = [], isLoading: gateLoading } = useQuery({
     queryKey: ['live-gate', hostelId],
     queryFn:  () => getLiveGateMovements(hostelId),
-    enabled:  !!hostelId,
+    enabled:  !!hostelId && !isPg,
     refetchInterval: 15_000,
   })
 
@@ -58,6 +59,12 @@ export default function ManagerDashboardPage() {
     queryKey: ['open-complaints', hostelId],
     queryFn:  () => getOpenComplaints(hostelId),
     enabled:  !!hostelId,
+  })
+
+  const { data: pendingPayments = [], isLoading: paymentsLoading } = useQuery({
+    queryKey: ['pending-payments', hostelId],
+    queryFn:  () => getPendingPayments(hostelId, 5),
+    enabled:  !!hostelId && isPg,
   })
 
   const { mutate: resolveComplaint, isPending: resolving } = useMutation({
@@ -90,12 +97,14 @@ export default function ManagerDashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/scan')}
-            className="flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-btn text-[13px] font-semibold active:scale-95 transition-transform"
-          >
-            <ScanLine size={15} /> Scan Pass
-          </button>
+          {!isPg && (
+            <button
+              onClick={() => navigate('/scan')}
+              className="flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-btn text-[13px] font-semibold active:scale-95 transition-transform"
+            >
+              <ScanLine size={15} /> Scan Pass
+            </button>
+          )}
           <button
             onClick={() => navigate('/notifications')}
             className="p-2 rounded-full hover:bg-surface-raised"
@@ -110,21 +119,44 @@ export default function ManagerDashboardPage() {
 
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Total Checked Out"
-            value={stats?.checkedOut ?? 0}
-            sub="Students"
-            icon={<LogOut size={18} className="text-danger" />}
-            loading={statsLoading}
-          />
-          <StatCard
-            label="Active Complaints"
-            value={stats?.activeComplaints ?? 0}
-            sub="Open tickets"
-            icon={<AlertTriangle size={18} className="text-warning" />}
-            valueColor="text-warning"
-            loading={statsLoading}
-          />
+          {isPg ? (
+            <>
+              <StatCard
+                label="Active Complaints"
+                value={stats?.activeComplaints ?? 0}
+                sub="Open tickets"
+                icon={<AlertTriangle size={18} className="text-warning" />}
+                valueColor="text-warning"
+                loading={statsLoading}
+              />
+              <StatCard
+                label="Pending Dues"
+                value={stats?.pendingDues ?? 0}
+                sub="Awaiting payment"
+                icon={<IndianRupee size={18} className="text-danger" />}
+                valueColor="text-danger"
+                loading={statsLoading}
+              />
+            </>
+          ) : (
+            <>
+              <StatCard
+                label="Total Checked Out"
+                value={stats?.checkedOut ?? 0}
+                sub="Students"
+                icon={<LogOut size={18} className="text-danger" />}
+                loading={statsLoading}
+              />
+              <StatCard
+                label="Active Complaints"
+                value={stats?.activeComplaints ?? 0}
+                sub="Open tickets"
+                icon={<AlertTriangle size={18} className="text-warning" />}
+                valueColor="text-warning"
+                loading={statsLoading}
+              />
+            </>
+          )}
         </div>
 
         {/* ── Quick Links ── */}
@@ -246,93 +278,157 @@ export default function ManagerDashboardPage() {
           )}
         </div>
 
-        {/* ── Live Gate Movement ── */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[17px] font-bold text-text-primary">Live Gate Movement</p>
-            <button
-              onClick={() => navigate('/gate-pass/history')}
-              className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
-            >
-              View All <ChevronRight size={14} />
-            </button>
-          </div>
-
-          {gateLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-surface rounded-card shadow-card p-3 flex gap-3">
-                  <Skeleton circle className="w-10 h-10 flex-shrink-0" />
-                  <div className="flex-1"><Skeleton lines={2} /></div>
-                </div>
-              ))}
+        {/* ── Live Gate Movement (hostel/shared only — PG has no gate infra) ── */}
+        {!isPg && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[17px] font-bold text-text-primary">Live Gate Movement</p>
+              <button
+                onClick={() => navigate('/gate-pass/history')}
+                className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
+              >
+                View All <ChevronRight size={14} />
+              </button>
             </div>
-          ) : gateMovements.length === 0 ? (
-            <div className="bg-surface rounded-card shadow-card p-4 text-center">
-              <p className="text-[13px] text-text-tertiary">No gate movements today</p>
-            </div>
-          ) : (
-            <div className="bg-surface rounded-card shadow-card overflow-hidden">
-              {gateMovements.map((pass, idx) => {
-                const profile = (pass as unknown as { profiles: { full_name: string; avatar_url: string | null; room_number: string | null } }).profiles
-                const name    = profile?.full_name ?? 'Unknown'
-                const room    = profile?.room_number
-                const initials = getInitials(name)
-                const color    = getAvatarColor(name)
-                const isExit   = pass.pass_type === 'exit'
-                const time     = pass.scanned_at ?? pass.generated_at
 
-                return (
-                  <div key={pass.id}>
-                    {idx > 0 && <div className="h-px bg-border mx-4" />}
-                    <div className="flex items-center gap-3 px-4 py-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-semibold flex-shrink-0"
-                        style={{ backgroundColor: color }}
-                      >
-                        {initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-text-primary">{name}</p>
-                        <p className="text-[12px] text-text-tertiary">
-                          {room ? `Room ${room}` : 'No room assigned'}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${isExit ? 'bg-danger' : 'bg-success'}`} />
-                          <span className={`text-[12px] font-bold ${isExit ? 'text-danger' : 'text-success'}`}>
-                            {isExit ? 'Out' : 'In'}
-                          </span>
+            {gateLoading ? (
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-surface rounded-card shadow-card p-3 flex gap-3">
+                    <Skeleton circle className="w-10 h-10 flex-shrink-0" />
+                    <div className="flex-1"><Skeleton lines={2} /></div>
+                  </div>
+                ))}
+              </div>
+            ) : gateMovements.length === 0 ? (
+              <div className="bg-surface rounded-card shadow-card p-4 text-center">
+                <p className="text-[13px] text-text-tertiary">No gate movements today</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-card shadow-card overflow-hidden">
+                {gateMovements.map((pass, idx) => {
+                  const profile = (pass as unknown as { profiles: { full_name: string; avatar_url: string | null; room_number: string | null } }).profiles
+                  const name    = profile?.full_name ?? 'Unknown'
+                  const room    = profile?.room_number
+                  const initials = getInitials(name)
+                  const color    = getAvatarColor(name)
+                  const isExit   = pass.pass_type === 'exit'
+                  const time     = pass.scanned_at ?? pass.generated_at
+
+                  return (
+                    <div key={pass.id}>
+                      {idx > 0 && <div className="h-px bg-border mx-4" />}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-semibold flex-shrink-0"
+                          style={{ backgroundColor: color }}
+                        >
+                          {initials}
                         </div>
-                        <span className="text-[11px] text-text-tertiary">{formatTime(time)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-text-primary">{name}</p>
+                          <p className="text-[12px] text-text-tertiary">
+                            {room ? `Room ${room}` : 'No room assigned'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${isExit ? 'bg-danger' : 'bg-success'}`} />
+                            <span className={`text-[12px] font-bold ${isExit ? 'text-danger' : 'text-success'}`}>
+                              {isExit ? 'Out' : 'In'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-text-tertiary">{formatTime(time)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── Today stats summary ── */}
-        <div className="bg-primary-light rounded-card p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Users size={20} className="text-primary" />
-            <div>
-              <p className="text-[14px] font-semibold text-text-primary">Today's Gate Activity</p>
-              <p className="text-[12px] text-text-secondary">
-                {statsLoading ? '—' : `${stats?.todayMovements ?? 0} total movements`}
-              </p>
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
-          <button
-            onClick={() => navigate('/gate-pass/history')}
-            className="text-[13px] text-primary font-semibold"
-          >
-            View Log
-          </button>
-        </div>
+        )}
+
+        {/* ── Footer widget: Pending Payments (PG) / Today's Gate Activity (hostel) ── */}
+        {isPg ? (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[17px] font-bold text-text-primary">Pending Payments</p>
+              <button
+                onClick={() => navigate('/manager/payments')}
+                className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
+              >
+                View All <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {paymentsLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-surface rounded-card shadow-card p-3 flex gap-3">
+                    <Skeleton circle className="w-10 h-10 flex-shrink-0" />
+                    <div className="flex-1"><Skeleton lines={2} /></div>
+                  </div>
+                ))}
+              </div>
+            ) : pendingPayments.length === 0 ? (
+              <div className="bg-success-light rounded-card p-4 flex items-center gap-3">
+                <CheckCircle2 size={20} className="text-success flex-shrink-0" />
+                <p className="text-[14px] font-semibold text-success">All dues collected!</p>
+              </div>
+            ) : (
+              <div className="bg-surface rounded-card shadow-card overflow-hidden">
+                {pendingPayments.map((p, idx) => {
+                  const profile = (p as unknown as { profiles: { full_name: string; room_number: string | null } }).profiles
+                  const name    = profile?.full_name ?? 'Unknown'
+                  const room    = profile?.room_number
+
+                  return (
+                    <div key={p.id}>
+                      {idx > 0 && <div className="h-px bg-border mx-4" />}
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-semibold flex-shrink-0"
+                          style={{ backgroundColor: getAvatarColor(name) }}
+                        >
+                          {getInitials(name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-text-primary">{name}</p>
+                          <p className="text-[12px] text-text-tertiary">
+                            {room ? `Room ${room}` : 'No room'} · Due {p.due_date ? formatDate(p.due_date) : '—'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <p className="text-[14px] font-bold text-text-primary">{formatCurrency(p.amount)}</p>
+                          <Badge variant={p.status}>{p.status}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-primary-light rounded-card p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Users size={20} className="text-primary" />
+              <div>
+                <p className="text-[14px] font-semibold text-text-primary">Today's Gate Activity</p>
+                <p className="text-[12px] text-text-secondary">
+                  {statsLoading ? '—' : `${stats?.todayMovements ?? 0} total movements`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/gate-pass/history')}
+              className="text-[13px] text-primary font-semibold"
+            >
+              View Log
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

@@ -14,6 +14,15 @@ const HOSTEL_TABS = [
   { label: 'Profile',    path: '/profile',    Icon: User            },
 ]
 
+// PG: same as hostel but no Gate Pass — landlord-managed PGs typically have
+// no security desk / QR scanner for entry-exit logging.
+const PG_TABS = [
+  { label: 'Home',       path: '/dashboard',  Icon: Home            },
+  { label: 'Mess',       path: '/mess',       Icon: UtensilsCrossed },
+  { label: 'Complaints', path: '/complaints', Icon: Wrench          },
+  { label: 'Profile',    path: '/profile',    Icon: User            },
+]
+
 const SHARED_TABS = [
   { label: 'Home',       path: '/dashboard',  Icon: Home      },
   { label: 'Expenses',   path: '/expenses',   Icon: Receipt   },
@@ -21,7 +30,7 @@ const SHARED_TABS = [
   { label: 'Profile',    path: '/profile',    Icon: User      },
 ]
 
-const MANAGER_TABS = [
+const MANAGER_TABS_HOSTEL = [
   { label: 'Dashboard',  path: '/manager',             Icon: LayoutDashboard },
   { label: 'Scan',       path: '/scan',                Icon: ScanLine        },
   { label: 'Complaints', path: '/manager/complaints',  Icon: Wrench          },
@@ -29,15 +38,25 @@ const MANAGER_TABS = [
   { label: 'Profile',    path: '/profile',             Icon: User            },
 ]
 
+// PG manager: no Scan tab — no gate-pass infrastructure to scan.
+const MANAGER_TABS_PG = [
+  { label: 'Dashboard',  path: '/manager',             Icon: LayoutDashboard },
+  { label: 'Complaints', path: '/manager/complaints',  Icon: Wrench          },
+  { label: 'Payments',   path: '/manager/payments',    Icon: Receipt         },
+  { label: 'Profile',    path: '/profile',             Icon: User            },
+]
+
 export function BottomNav() {
   const user      = useAuthStore((s) => s.user)
-  const propType  = (user?.hostel as unknown as { property_type?: string })?.property_type
+  const propType  = user?.hostel?.property_type
   const isManager = user?.profile.role === 'warden' || user?.profile.role === 'manager'
 
   const tabs = isManager
-    ? MANAGER_TABS
+    ? (propType === 'pg' ? MANAGER_TABS_PG : MANAGER_TABS_HOSTEL)
     : propType === 'shared'
     ? SHARED_TABS
+    : propType === 'pg'
+    ? PG_TABS
     : HOSTEL_TABS
 
   return (

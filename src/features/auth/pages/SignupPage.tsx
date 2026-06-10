@@ -115,7 +115,7 @@ export default function SignupPage() {
       email: form.email,
       options: {
         shouldCreateUser: true,
-        data: { full_name: form.full_name },
+        data: { full_name: form.full_name, phone: form.phone },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })

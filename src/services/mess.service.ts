@@ -56,12 +56,13 @@ export async function getMonthOptouts(userId: string, year: number, month: numbe
 }
 
 export async function getActiveMessRate(hostelId: string) {
+  const today = new Date().toISOString().split('T')[0]
   const { data } = await supabase
     .from('mess_rates')
     .select('*')
     .eq('hostel_id', hostelId)
-    .lte('effective_from', new Date().toISOString().split('T')[0])
-    .or('effective_to.is.null,effective_to.gte.' + new Date().toISOString().split('T')[0])
+    .lte('effective_from', today)
+    .or(`effective_to.is.null,effective_to.gte.${today}`)
     .order('effective_from', { ascending: false })
     .limit(1)
     .maybeSingle()

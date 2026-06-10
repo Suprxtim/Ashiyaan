@@ -10,20 +10,24 @@ import type { Database } from '@/types/database.types'
 
 type PaymentStatus = Database['public']['Enums']['payment_status']
 
+type PaymentWithProfile = Database['public']['Tables']['payments']['Row'] & {
+  profiles: { full_name: string; room_number: string | null; avatar_url: string | null } | null
+}
+
 const STATUS_CONFIG: Record<PaymentStatus, { label: string; className: string; Icon: React.ElementType }> = {
   pending:  { label: 'Pending',  className: 'bg-warning-light text-warning', Icon: Clock         },
   overdue:  { label: 'Overdue',  className: 'bg-danger text-white',          Icon: AlertCircle   },
   paid:     { label: 'Paid',     className: 'bg-success-light text-success', Icon: CheckCircle2  },
 }
 
-async function fetchAllPayments(hostelId: string) {
+async function fetchAllPayments(hostelId: string): Promise<PaymentWithProfile[]> {
   const { data } = await supabase
     .from('payments')
     .select('*, profiles(full_name, room_number, avatar_url)')
     .eq('hostel_id', hostelId)
     .order('status', { ascending: true })   // overdue first
     .order('due_date', { ascending: true })
-  return data ?? []
+  return (data ?? []) as unknown as PaymentWithProfile[]
 }
 
 async function markAsPaid(paymentId: string) {
@@ -58,7 +62,7 @@ export default function ManagerPaymentsPage() {
   })
 
   const filtered = payments.filter((p) => {
-    const profile = (p as unknown as { profiles: { full_name: string; room_number: string | null } }).profiles
+    const profile = p.profiles
     const matchSearch = !search ||
       profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       profile?.room_number?.includes(search) ||
@@ -130,7 +134,7 @@ export default function ManagerPaymentsPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((p) => {
-              const profile = (p as unknown as { profiles: { full_name: string; room_number: string | null; avatar_url: string | null } }).profiles
+              const profile = p.profiles
               const badge   = STATUS_CONFIG[p.status]
               const BadgeIcon = badge.Icon
 

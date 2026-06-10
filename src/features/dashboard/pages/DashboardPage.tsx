@@ -6,11 +6,17 @@ import {
   IndianRupee, Wrench,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
-import { fetchDashboardStats, fetchAnnouncements, fetchRecentActivity } from '@/services/dashboard.service'
+import { fetchDashboardStats, fetchAnnouncements, fetchRecentActivity, fetchRecentComplaints } from '@/services/dashboard.service'
 import { getExpenses, getBalances } from '@/services/expenses.service'
 import { formatCurrency, formatTime, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Badge } from '@/components/ui/Badge'
 import type { Announcement } from '@/types/app.types'
+
+const CATEGORY_LABEL: Record<string, string> = {
+  electrical: 'Electrical', plumbing: 'Plumbing', cleaning: 'Cleaning',
+  furniture: 'Furniture', wifi: 'Wi-Fi', other: 'Other',
+}
 
 const ANN_BG: Record<string, string> = {
   emergency:   'bg-[#6B3A2A]',
@@ -26,8 +32,9 @@ export default function DashboardPage() {
 
   const hostelId   = user?.profile.hostel_id ?? ''
   const userId     = user?.id ?? ''
-  const propType   = (user?.hostel as unknown as { property_type?: string })?.property_type ?? 'hostel'
+  const propType   = user?.hostel?.property_type ?? 'hostel'
   const isShared   = propType === 'shared'
+  const isPg       = propType === 'pg'
   const isManager  = user?.profile.role === 'warden' || user?.profile.role === 'manager'
 
   // ── Hostel stats — disabled for managers so no wasted fetches ──
@@ -57,10 +64,18 @@ export default function DashboardPage() {
     enabled:  !!hostelId && !isManager,
   })
 
+  // ── Hostel-only — gate pass history ──
   const { data: activity = [], isLoading: actLoading } = useQuery({
     queryKey: ['recent-activity', userId],
     queryFn:  () => fetchRecentActivity(userId),
-    enabled:  !!userId && !isShared && !isManager,
+    enabled:  !!userId && !isShared && !isPg && !isManager,
+  })
+
+  // ── PG-only — recent complaints (no gate pass to show instead) ──
+  const { data: recentComplaints = [], isLoading: complaintsRecentLoading } = useQuery({
+    queryKey: ['recent-complaints', userId],
+    queryFn:  () => fetchRecentComplaints(userId),
+    enabled:  !!userId && isPg && !isManager,
   })
 
   // Managers/wardens go to their own dashboard — placed AFTER all hooks
@@ -188,6 +203,37 @@ export default function DashboardPage() {
                   onClick={() => navigate('/emergency')}
                 />
               </>
+            ) : isPg ? (
+              <>
+                <QuickAction
+                  icon={<UtensilsCrossed size={26} className="text-white" />}
+                  label="Opt Meals"
+                  className="bg-primary"
+                  labelClass="text-white"
+                  onClick={() => navigate('/mess')}
+                />
+                <QuickAction
+                  icon={<Wrench size={26} className="text-primary" />}
+                  label="Report Issue"
+                  className="bg-surface border-2 border-dashed border-border"
+                  labelClass="text-primary"
+                  onClick={() => navigate('/complaints/new')}
+                />
+                <QuickAction
+                  icon={<CreditCard size={26} className="text-text-primary" />}
+                  label="Pay Dues"
+                  className="bg-accent"
+                  labelClass="text-text-primary"
+                  onClick={() => navigate('/payments')}
+                />
+                <QuickAction
+                  icon={<span className="text-danger text-[20px] font-black tracking-tight">SOS</span>}
+                  label="SOS"
+                  className="bg-[#FFE8E8]"
+                  labelClass="text-danger"
+                  onClick={() => navigate('/emergency')}
+                />
+              </>
             ) : (
               <>
                 <QuickAction
@@ -282,8 +328,8 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-2">
                 {recentExpenses.slice(0, 4).map((exp) => {
-                  const paidByProfile = (exp as unknown as { profiles: { full_name: string } }).profiles
-                  const splits = (exp as unknown as { expense_splits: Array<{ user_id: string; amount: number; is_paid: boolean }> }).expense_splits ?? []
+                  const paidByProfile = exp.profiles
+                  const splits = exp.expense_splits ?? []
                   const mySplit = splits.find((s) => s.user_id === userId)
                   const iPayee  = exp.paid_by === userId
                   return (
@@ -312,6 +358,56 @@ export default function DashboardPage() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+          </div>
+        ) : isPg ? (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[17px] font-bold text-text-primary">Recent Complaints</p>
+              <button
+                onClick={() => navigate('/complaints')}
+                className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
+              >
+                View All <ChevronRight size={14} />
+              </button>
+            </div>
+
+            {complaintsRecentLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-surface rounded-card p-3 shadow-card flex gap-3">
+                    <Skeleton circle className="w-9 h-9 flex-shrink-0" />
+                    <div className="flex-1"><Skeleton lines={2} /></div>
+                  </div>
+                ))}
+              </div>
+            ) : recentComplaints.length === 0 ? (
+              <div className="bg-surface rounded-card shadow-card p-4 text-center">
+                <p className="text-[13px] text-text-tertiary italic">No complaints yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentComplaints.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => navigate('/complaints')}
+                    className="bg-surface rounded-card px-4 py-3 flex items-center gap-3 shadow-card cursor-pointer active:scale-[0.99] transition-transform"
+                  >
+                    <div className="w-9 h-9 rounded-inner bg-primary-light flex items-center justify-center flex-shrink-0">
+                      <Wrench size={16} className="text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-text-primary truncate">{c.title}</p>
+                      <p className="text-[12px] text-text-tertiary">
+                        {CATEGORY_LABEL[c.category] ?? c.category} · {timeAgo(c.created_at)}
+                      </p>
+                    </div>
+                    <Badge variant={c.status} className="flex-shrink-0">
+                      {c.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                ))}
               </div>
             )}
           </div>

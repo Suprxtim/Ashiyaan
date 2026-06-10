@@ -5,7 +5,7 @@ type ComplaintStatus = Database['public']['Enums']['complaint_status']
 export async function getManagerStats(hostelId: string) {
   const today = new Date().toISOString().split('T')[0]
 
-  const [checkedOut, activeComplaints, todayPasses] = await Promise.all([
+  const [checkedOut, activeComplaints, todayPasses, pendingDues] = await Promise.all([
     // Students currently outside (exit passes used today, no entry since)
     supabase
       .from('gate_passes')
@@ -28,12 +28,20 @@ export async function getManagerStats(hostelId: string) {
       .select('id', { count: 'exact', head: true })
       .eq('hostel_id', hostelId)
       .gte('generated_at', today),
+
+    // Payments awaiting collection
+    supabase
+      .from('payments')
+      .select('id', { count: 'exact', head: true })
+      .eq('hostel_id', hostelId)
+      .in('status', ['pending', 'overdue']),
   ])
 
   return {
     checkedOut:       checkedOut.count  ?? 0,
     activeComplaints: activeComplaints.count ?? 0,
     todayMovements:   todayPasses.count ?? 0,
+    pendingDues:      pendingDues.count ?? 0,
   }
 }
 

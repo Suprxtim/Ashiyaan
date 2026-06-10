@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth.store'
 import { useAuth } from '@/hooks/useAuth'
 import { AppShell } from '@/components/layout/AppShell'
 import { Spinner } from '@/components/ui/Spinner'
+import type { PropertyType } from '@/types/app.types'
 
 // ── Lazy pages ────────────────────────────────────────────────
 
@@ -101,6 +102,25 @@ function SuspenseOutlet() {
   )
 }
 
+// Redirect students away from manager/warden-only pages.
+function StaffOnlyGuard() {
+  const { user, isLoading } = useAuthStore()
+  if (isLoading) return <PageLoader />
+  const isStaff = user?.profile.role === 'warden' || user?.profile.role === 'manager'
+  if (!isStaff) return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}
+
+// Redirect users whose hostel's property type doesn't support a feature
+// (e.g. PG residents have no Gate Pass, Shared apartments have no Mess).
+function PropertyTypeGuard({ allow }: { allow: PropertyType[] }) {
+  const { user, isLoading } = useAuthStore()
+  if (isLoading) return <PageLoader />
+  const propType = user?.hostel?.property_type ?? 'hostel'
+  if (!allow.includes(propType)) return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}
+
 // ── Router ────────────────────────────────────────────────────
 
 export const router = createBrowserRouter([
@@ -150,33 +170,69 @@ export const router = createBrowserRouter([
           {
             element: <SuspenseOutlet />,
             children: [
-              // Student routes
+              // Student routes — available to every property type
               { path: '/dashboard',             element: <DashboardPage /> },
-              { path: '/gate-pass',             element: <GatePassPage /> },
-              { path: '/gate-pass/history',     element: <PassHistoryPage /> },
-              { path: '/mess',                  element: <MessPage /> },
-              { path: '/mess/bill',             element: <MessBillPage /> },
               { path: '/complaints',            element: <ComplaintsPage /> },
               { path: '/complaints/new',        element: <NewComplaintPage /> },
               { path: '/complaints/:id',        element: <ComplaintDetailPage /> },
               { path: '/payments',              element: <PaymentsPage /> },
               { path: '/emergency',             element: <EmergencyPage /> },
               { path: '/profile',               element: <ProfilePage /> },
+              { path: '/community',             element: <CommunityPage /> },
+              { path: '/notifications',         element: <NotificationsPage /> },
 
-              // Shared apartment
-              { path: '/expenses', element: <ExpensesPage /> },
+              // Gate Pass — hostel only (PG/Shared have no gate infrastructure)
+              {
+                element: <PropertyTypeGuard allow={['hostel']} />,
+                children: [
+                  { path: '/gate-pass',         element: <GatePassPage /> },
+                  { path: '/gate-pass/history', element: <PassHistoryPage /> },
+                ],
+              },
 
-              // Security/warden QR scanner
-              { path: '/scan',      element: <ScanPage />      },
-              { path: '/community',        element: <CommunityPage />      },
-              { path: '/mess/menu-editor',    element: <MessMenuEditorPage />   },
-              { path: '/manager/payments',    element: <ManagerPaymentsPage />  },
-              { path: '/notifications',       element: <NotificationsPage />    },
+              // Mess — hostel + PG (Shared apartments don't have a mess)
+              {
+                element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                children: [
+                  { path: '/mess',      element: <MessPage /> },
+                  { path: '/mess/bill', element: <MessBillPage /> },
+                ],
+              },
 
-              // Manager/warden routes
-              { path: '/manager',             element: <ManagerDashboardPage />  },
-              { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
-              { path: '/manager/sos',        element: <ManagerSosPage />        },
+              // Shared apartment expense splitting
+              {
+                element: <PropertyTypeGuard allow={['shared']} />,
+                children: [
+                  { path: '/expenses', element: <ExpensesPage /> },
+                ],
+              },
+
+              // Manager/warden-only routes
+              {
+                element: <StaffOnlyGuard />,
+                children: [
+                  { path: '/manager',            element: <ManagerDashboardPage />  },
+                  { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
+                  { path: '/manager/sos',        element: <ManagerSosPage />        },
+                  { path: '/manager/payments',   element: <ManagerPaymentsPage />   },
+
+                  // Security/warden QR scanner — hostel + shared (no gate infra for PG)
+                  {
+                    element: <PropertyTypeGuard allow={['hostel', 'shared']} />,
+                    children: [
+                      { path: '/scan', element: <ScanPage /> },
+                    ],
+                  },
+
+                  // Mess menu editor — hostel + PG (mirrors student Mess access)
+                  {
+                    element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                    children: [
+                      { path: '/mess/menu-editor', element: <MessMenuEditorPage /> },
+                    ],
+                  },
+                ],
+              },
             ],
           },
         ],

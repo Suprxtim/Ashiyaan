@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, QrCode, UtensilsCrossed, Wrench,
-  CreditCard, Siren, User, BedDouble, Settings, LogOut, Receipt,
+  CreditCard, Siren, User, Settings, LogOut, Receipt, ScanLine,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -18,6 +18,17 @@ const HOSTEL_NAV = [
   { label: 'Profile',     path: '/profile',    Icon: User            },
 ]
 
+// PG: same as hostel but no Gate Pass — landlord-managed PGs typically have
+// no security desk / QR scanner for entry-exit logging.
+const PG_NAV = [
+  { label: 'Dashboard',   path: '/dashboard',  Icon: LayoutDashboard },
+  { label: 'Mess',        path: '/mess',       Icon: UtensilsCrossed },
+  { label: 'Complaints',  path: '/complaints', Icon: Wrench          },
+  { label: 'Payments',    path: '/payments',   Icon: CreditCard      },
+  { label: 'Emergency',   path: '/emergency',  Icon: Siren           },
+  { label: 'Profile',     path: '/profile',    Icon: User            },
+]
+
 const SHARED_NAV = [
   { label: 'Dashboard',   path: '/dashboard',  Icon: LayoutDashboard },
   { label: 'Expenses',    path: '/expenses',   Icon: Receipt         },
@@ -27,13 +38,20 @@ const SHARED_NAV = [
   { label: 'Profile',     path: '/profile',    Icon: User            },
 ]
 
-const MANAGER_NAV = [
-  { label: 'Dashboard',   path: '/manager',    Icon: LayoutDashboard },
-  { label: 'Gate',        path: '/gate-pass',  Icon: QrCode          },
-  { label: 'Complaints',  path: '/complaints', Icon: Wrench          },
-  { label: 'Payments',    path: '/payments',   Icon: CreditCard      },
-  { label: 'Rooms',       path: '/profile',    Icon: BedDouble       },
-  { label: 'Settings',    path: '/profile',    Icon: Settings        },
+const MANAGER_NAV_HOSTEL = [
+  { label: 'Dashboard',   path: '/manager',             Icon: LayoutDashboard },
+  { label: 'Scan',        path: '/scan',                Icon: ScanLine        },
+  { label: 'Complaints',  path: '/manager/complaints',  Icon: Wrench          },
+  { label: 'Payments',    path: '/manager/payments',    Icon: CreditCard      },
+  { label: 'Settings',    path: '/profile',             Icon: Settings        },
+]
+
+// PG manager: no Scan tab — no gate-pass infrastructure to scan.
+const MANAGER_NAV_PG = [
+  { label: 'Dashboard',   path: '/manager',             Icon: LayoutDashboard },
+  { label: 'Complaints',  path: '/manager/complaints',  Icon: Wrench          },
+  { label: 'Payments',    path: '/manager/payments',    Icon: CreditCard      },
+  { label: 'Settings',    path: '/profile',             Icon: Settings        },
 ]
 
 export function Sidebar() {
@@ -41,8 +59,14 @@ export function Sidebar() {
   const clear     = useAuthStore((s) => s.clear)
   const navigate  = useNavigate()
   const isManager = user?.profile.role === 'warden' || user?.profile.role === 'manager'
-  const propType  = (user?.hostel as unknown as { property_type?: string })?.property_type
-  const nav       = isManager ? MANAGER_NAV : propType === 'shared' ? SHARED_NAV : HOSTEL_NAV
+  const propType  = user?.hostel?.property_type
+  const nav       = isManager
+    ? (propType === 'pg' ? MANAGER_NAV_PG : MANAGER_NAV_HOSTEL)
+    : propType === 'shared'
+    ? SHARED_NAV
+    : propType === 'pg'
+    ? PG_NAV
+    : HOSTEL_NAV
 
   const initials    = user ? getInitials(user.profile.full_name) : '?'
   const avatarColor = user ? getAvatarColor(user.profile.full_name) : '#1A3D3D'

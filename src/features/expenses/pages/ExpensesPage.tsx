@@ -309,8 +309,8 @@ export default function ExpensesPage() {
           ) : (
             <div className="space-y-2">
               {expenses.map((exp) => {
-                const paidByProfile = (exp as unknown as { profiles: { full_name: string } }).profiles
-                const splits = (exp as unknown as { expense_splits: Array<{ user_id: string; amount: number; is_paid: boolean }> }).expense_splits ?? []
+                const paidByProfile = exp.profiles
+                const splits = exp.expense_splits ?? []
                 const mySplit = splits.find((s) => s.user_id === userId)
                 const iPayee  = exp.paid_by === userId
 

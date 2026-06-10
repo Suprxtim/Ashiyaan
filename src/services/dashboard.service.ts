@@ -62,3 +62,14 @@ export async function fetchRecentActivity(userId: string) {
 
   return data ?? []
 }
+
+export async function fetchRecentComplaints(userId: string) {
+  const { data } = await supabase
+    .from('complaints')
+    .select('id, title, category, status, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(4)
+
+  return data ?? []
+}

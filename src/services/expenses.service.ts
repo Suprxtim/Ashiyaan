@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types/database.types'
 
 export interface NewExpense {
   hostelId:    string
@@ -12,14 +13,23 @@ export interface NewExpense {
   splits:      { userId: string; amount: number }[]
 }
 
-export async function getExpenses(hostelId: string) {
+export type ExpenseWithRelations = Database['public']['Tables']['expenses']['Row'] & {
+  profiles: { full_name: string; avatar_url: string | null } | null
+  expense_splits: Array<
+    Database['public']['Tables']['expense_splits']['Row'] & {
+      profiles: { full_name: string } | null
+    }
+  >
+}
+
+export async function getExpenses(hostelId: string): Promise<ExpenseWithRelations[]> {
   const { data } = await supabase
     .from('expenses')
     .select('*, profiles!expenses_paid_by_fkey(full_name, avatar_url), expense_splits(*, profiles(full_name))')
     .eq('hostel_id', hostelId)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
-  return data ?? []
+  return (data ?? []) as unknown as ExpenseWithRelations[]
 }
 
 export async function createExpense(payload: NewExpense) {

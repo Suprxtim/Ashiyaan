@@ -14,6 +14,22 @@ import { getVisitors, createVisitor, cancelVisitor } from '@/services/visitors.s
 
 type Tab = 'my' | 'visitor'
 
+const VISITOR_STATUS_STYLE: Record<string, string> = {
+  pending:  'bg-warning-light text-warning',
+  approved: 'bg-success-light text-success',
+  arrived:  'bg-primary-light text-primary',
+  left:     'bg-surface-raised text-text-secondary',
+  expired:  'bg-surface-raised text-text-tertiary',
+}
+
+const VISITOR_STATUS_LABEL: Record<string, string> = {
+  pending:  'Pending',
+  approved: 'Approved',
+  arrived:  'Arrived',
+  left:     'Left',
+  expired:  'Expired',
+}
+
 export default function GatePassPage() {
   const navigate   = useNavigate()
   const [tab, setTab] = useState<Tab>('my')
@@ -51,7 +67,11 @@ export default function GatePassPage() {
             <p className="text-[12px] text-text-tertiary leading-tight">{user?.profile.full_name}</p>
           </div>
         </div>
-        <button className="p-2 rounded-full hover:bg-surface-raised" aria-label="Notifications">
+        <button
+          onClick={() => navigate('/notifications')}
+          className="p-2 rounded-full hover:bg-surface-raised"
+          aria-label="Notifications"
+        >
           <Bell size={22} className="text-text-secondary" />
         </button>
       </div>
@@ -385,8 +405,8 @@ function VisitorTab({ userId, hostelId }: { userId: string; hostelId: string }) 
                       {v.purpose && <p className="text-[12px] text-text-tertiary italic">{v.purpose}</p>}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-pill bg-success-light text-success">
-                        Approved
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-pill ${VISITOR_STATUS_STYLE[v.status] ?? 'bg-surface-raised text-text-secondary'}`}>
+                        {VISITOR_STATUS_LABEL[v.status] ?? v.status}
                       </span>
                       <button onClick={() => cancel(v.id)} className="p-1.5 text-text-tertiary hover:text-danger transition-colors">
                         <Trash2 size={14} />

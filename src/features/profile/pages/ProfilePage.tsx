@@ -20,7 +20,7 @@ export default function ProfilePage() {
   const user      = useAuthStore((s) => s.user)
   const setUser   = useAuthStore((s) => s.setUser)
   const clear     = useAuthStore((s) => s.clear)
-  const propType  = (user?.hostel as unknown as { property_type?: keyof typeof PROP_TYPE_CONFIG })?.property_type
+  const propType  = user?.hostel?.property_type
   const propConf  = propType ? PROP_TYPE_CONFIG[propType] : null
 
   const [editing,  setEditing]  = useState(false)
@@ -127,7 +127,7 @@ export default function ProfilePage() {
             <InfoRow
               icon={<Hash size={16} />}
               label="Place Code"
-              value={(user.hostel as unknown as { hostel_code?: string }).hostel_code ?? '—'}
+              value={user.hostel.hostel_code ?? '—'}
               last
             />
           )}
@@ -151,7 +151,7 @@ export default function ProfilePage() {
             <SettingsRow icon={<Bell size={16} />}       label="Notifications"    onClick={() => navigate('/notifications')} />
             <SettingsRow icon={<Shield size={16} />}     label="Privacy & Safety" onClick={() => toast('Your data is stored securely and never sold. Contact support@ashiyaan.app for data requests.')} />
             <SettingsRow icon={<HelpCircle size={16} />} label="Help & Support"   onClick={() => toast('Email us at support@ashiyaan.app or ask your warden for help.')} />
-            <SettingsRow icon={<Info size={16} />}       label="About Ashiyaan"   value="v1.0" onClick={() => {}} last />
+            <SettingsRow icon={<Info size={16} />}       label="About Ashiyaan"   value="v1.0" onClick={() => toast('Ashiyaan v1.0 — making hostel, PG & shared-living management simple.')} last />
           </div>
         </div>
 
