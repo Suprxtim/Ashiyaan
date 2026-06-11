@@ -73,13 +73,10 @@ export default function SignupPage() {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      email: form.email,
+      phone: form.phone,
       options: {
         shouldCreateUser: true,
-        data: { full_name: form.full_name, phone: form.phone },
-        // emailRedirectTo makes magic links (sent when the OTP email template isn't
-        // configured yet) land on the correct callback page.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { full_name: form.full_name, email: form.email },
       },
     })
     setLoading(false)
@@ -92,9 +89,9 @@ export default function SignupPage() {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
-      email: form.email,
+      phone: form.phone,
       token: otp,
-      type: 'email',
+      type: 'sms',
     })
     setLoading(false)
     if (error) {
@@ -112,11 +109,10 @@ export default function SignupPage() {
   async function handleResendOtp() {
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      email: form.email,
+      phone: form.phone,
       options: {
         shouldCreateUser: true,
-        data: { full_name: form.full_name, phone: form.phone },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { full_name: form.full_name, email: form.email },
       },
     })
     setLoading(false)
@@ -180,10 +176,11 @@ export default function SignupPage() {
               <Input
                 label="Phone number"
                 type="tel"
-                placeholder="+91 98765 43210"
+                placeholder="+919876543210"
                 value={form.phone}
                 onChange={set('phone')}
                 leftIcon={<Phone size={16} />}
+                required
               />
               {error && <p className="text-[12px] text-danger">{error}</p>}
               <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
@@ -193,10 +190,10 @@ export default function SignupPage() {
           </>
         ) : (
           <>
-            <h2 className="text-[18px] font-bold text-text-primary mb-1">Verify email</h2>
+            <h2 className="text-[18px] font-bold text-text-primary mb-1">Verify phone</h2>
             <p className="text-[13px] text-text-secondary mb-5">
               Enter the code sent to{' '}
-              <span className="font-semibold text-text-primary">{form.email}</span>
+              <span className="font-semibold text-text-primary">{form.phone}</span>
             </p>
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <OtpInput
@@ -222,7 +219,7 @@ export default function SignupPage() {
                   onClick={() => { setStep('form'); setOtp(''); setError('') }}
                   className="text-[13px] text-text-secondary"
                 >
-                  Change email
+                  Change phone number
                 </button>
                 {resendTimer > 0 ? (
                   <span className="text-[13px] text-text-tertiary flex items-center gap-1">

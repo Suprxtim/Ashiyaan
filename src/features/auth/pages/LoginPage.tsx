@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Mail, ArrowRight, KeyRound, Eye, EyeOff, RefreshCw } from 'lucide-react'
+import { Mail, Phone, ArrowRight, KeyRound, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -34,6 +34,7 @@ function Divider() {
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('password')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -88,19 +89,16 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      phone,
       options: {
         shouldCreateUser: false,
-        // emailRedirectTo makes magic links (the fallback when OTP template isn't
-        // configured) redirect to the correct callback URL.
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     setLoading(false)
     if (error) {
       setError(
         error.message.includes('User not found') || error.message.includes('not found')
-          ? 'No account found for this email. Did you mean to sign up?'
+          ? 'No account found for this phone number. Did you mean to sign up?'
           : error.message
       )
       return
@@ -113,7 +111,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.verifyOtp({ email, token: otp, type: 'email' })
+    const { error } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' })
     setLoading(false)
     if (error) {
       setError(
@@ -129,10 +127,9 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      email,
+      phone,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
     setLoading(false)
@@ -234,7 +231,7 @@ export default function LoginPage() {
                 onClick={() => { setMode('otp-send'); setError('') }}
                 className="text-[13px] text-info"
               >
-                Sign in with email code instead
+                Sign in with phone instead
               </button>
             </div>
           </>
@@ -243,18 +240,18 @@ export default function LoginPage() {
         {/* ── OTP: enter email ── */}
         {mode === 'otp-send' && (
           <>
-            <h2 className="text-[20px] font-bold text-text-primary mb-1">Email code</h2>
+            <h2 className="text-[20px] font-bold text-text-primary mb-1">Phone login</h2>
             <p className="text-[14px] text-text-secondary mb-6">
-              We'll send a 6-digit code to your email
+              We'll send a 6-digit code to your phone
             </p>
             <form onSubmit={handleSendOtp} className="space-y-4">
               <Input
-                label="Email address"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                leftIcon={<Mail size={16} />}
+                label="Phone number"
+                type="tel"
+                placeholder="+919876543210"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                leftIcon={<Phone size={16} />}
                 error={error}
                 required
                 autoFocus
@@ -280,7 +277,7 @@ export default function LoginPage() {
           <>
             <h2 className="text-[20px] font-bold text-text-primary mb-1">Enter code</h2>
             <p className="text-[14px] text-text-secondary mb-6">
-              Sent to <span className="font-semibold text-text-primary">{email}</span>
+              Sent to <span className="font-semibold text-text-primary">{phone}</span>
             </p>
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <OtpInput
@@ -305,7 +302,7 @@ export default function LoginPage() {
                   onClick={() => { setMode('otp-send'); setOtp(''); setError('') }}
                   className="text-[13px] text-text-secondary"
                 >
-                  Change email
+                  Change phone number
                 </button>
                 {resendTimer > 0 ? (
                   <span className="text-[13px] text-text-tertiary flex items-center gap-1">
