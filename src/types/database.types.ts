@@ -431,6 +431,76 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_requests: {
+        Row: {
+          created_at: string
+          destination: string | null
+          from_date: string
+          hostel_id: string
+          id: string
+          reason: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["leave_status"]
+          to_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination?: string | null
+          from_date: string
+          hostel_id: string
+          id?: string
+          reason: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["leave_status"]
+          to_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination?: string | null
+          from_date?: string
+          hostel_id?: string
+          id?: string
+          reason?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["leave_status"]
+          to_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_hostel_id_fkey"
+            columns: ["hostel_id"]
+            isOneToOne: false
+            referencedRelation: "hostels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lost_found: {
         Row: {
           created_at: string
@@ -538,6 +608,54 @@ export type Database = {
           },
           {
             foreignKeyName: "marketplace_listings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mess_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          date: string
+          hostel_id: string
+          id: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          date: string
+          hostel_id: string
+          id?: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          rating: number
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          date?: string
+          hostel_id?: string
+          id?: string
+          meal_type?: Database["public"]["Enums"]["meal_type"]
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mess_feedback_hostel_id_fkey"
+            columns: ["hostel_id"]
+            isOneToOne: false
+            referencedRelation: "hostels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mess_feedback_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1151,6 +1269,7 @@ export type Database = {
         | "food"
         | "transport"
         | "other"
+      leave_status: "pending" | "approved" | "rejected" | "cancelled"
       listing_condition: "new" | "like_new" | "good" | "fair" | "poor"
       listing_status: "active" | "sold" | "removed"
       lostfound_type: "lost" | "found"
@@ -1325,6 +1444,7 @@ export const Constants = {
         "transport",
         "other",
       ],
+      leave_status: ["pending", "approved", "rejected", "cancelled"],
       listing_condition: ["new", "like_new", "good", "fair", "poor"],
       listing_status: ["active", "sold", "removed"],
       lostfound_type: ["lost", "found"],

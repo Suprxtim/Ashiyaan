@@ -10,6 +10,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       includeAssets: ['icons/*.png', 'icons/*.svg'],
       manifest: {
         name: 'Ashiyaan',
@@ -33,28 +39,6 @@ export default defineConfig({
           { name: 'Mess Menu', short_name: 'Mess', description: 'View menu & opt out', url: '/mess', icons: [{ src: 'icons/pwa-192x192.png', sizes: '192x192' }] },
         ],
         categories: ['productivity', 'utilities'],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
-              networkTimeoutSeconds: 5,
-            },
-          },
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'supabase-storage-cache',
-              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-        ],
       },
     }),
   ],

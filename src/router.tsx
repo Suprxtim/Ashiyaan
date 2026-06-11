@@ -31,8 +31,14 @@ const EmergencyPage   = lazy(() => import('@/features/emergency/pages/EmergencyP
 
 const ProfilePage     = lazy(() => import('@/features/profile/pages/ProfilePage'))
 
+const MyRoomPage      = lazy(() => import('@/features/room/pages/MyRoomPage'))
+
+const LeaveRequestsPage    = lazy(() => import('@/features/leave/pages/LeaveRequestsPage'))
+const NewLeaveRequestPage  = lazy(() => import('@/features/leave/pages/NewLeaveRequestPage'))
+
 const ManagerDashboardPage    = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
 const ManagerComplaintsPage   = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
+const ManagerLeaveRequestsPage = lazy(() => import('@/features/leave/pages/ManagerLeaveRequestsPage'))
 const ManagerSosPage          = lazy(() => import('@/features/emergency/pages/ManagerSosPage'))
 const ExpensesPage         = lazy(() => import('@/features/expenses/pages/ExpensesPage'))
 const ScanPage             = lazy(() => import('@/features/gate-pass/pages/ScanPage'))
@@ -178,6 +184,7 @@ export const router = createBrowserRouter([
               { path: '/payments',              element: <PaymentsPage /> },
               { path: '/emergency',             element: <EmergencyPage /> },
               { path: '/profile',               element: <ProfilePage /> },
+              { path: '/my-room',               element: <MyRoomPage /> },
               { path: '/community',             element: <CommunityPage /> },
               { path: '/notifications',         element: <NotificationsPage /> },
 
@@ -196,6 +203,15 @@ export const router = createBrowserRouter([
                 children: [
                   { path: '/mess',      element: <MessPage /> },
                   { path: '/mess/bill', element: <MessBillPage /> },
+                ],
+              },
+
+              // Outpass / Leave Requests — hostel + PG (Shared apartments have no warden to approve)
+              {
+                element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                children: [
+                  { path: '/leave',     element: <LeaveRequestsPage /> },
+                  { path: '/leave/new', element: <NewLeaveRequestPage /> },
                 ],
               },
 
@@ -229,6 +245,7 @@ export const router = createBrowserRouter([
                     element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
                     children: [
                       { path: '/mess/menu-editor', element: <MessMenuEditorPage /> },
+                      { path: '/manager/leave',     element: <ManagerLeaveRequestsPage /> },
                     ],
                   },
                 ],

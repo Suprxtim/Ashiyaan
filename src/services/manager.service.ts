@@ -2,6 +2,10 @@ import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/database.types'
 type ComplaintStatus = Database['public']['Enums']['complaint_status']
 
+export type ComplaintWithProfile = Database['public']['Tables']['complaints']['Row'] & {
+  profiles: { full_name: string; room_number: string | null; avatar_url: string | null } | null
+}
+
 export async function getManagerStats(hostelId: string) {
   const today = new Date().toISOString().split('T')[0]
 
@@ -118,7 +122,7 @@ export async function updateComplaintStatus(
   if (error) throw error
 }
 
-export async function getAllHostelComplaints(hostelId: string, status?: ComplaintStatus) {
+export async function getAllHostelComplaints(hostelId: string, status?: ComplaintStatus): Promise<ComplaintWithProfile[]> {
   let q = supabase
     .from('complaints')
     .select('*, profiles(full_name, room_number, avatar_url)')
@@ -127,7 +131,60 @@ export async function getAllHostelComplaints(hostelId: string, status?: Complain
 
   if (status) q = q.eq('status', status)
   const { data } = await q
-  return data ?? []
+  return (data ?? []) as unknown as ComplaintWithProfile[]
+}
+
+export interface ManagerAnalytics {
+  occupancy: { occupied: number; total: number; rate: number } | null
+  collection: { collected: number; total: number; rate: number } | null
+  avgResolutionHours: number | null
+}
+
+export async function getManagerAnalytics(hostelId: string): Promise<ManagerAnalytics> {
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+
+  const [roomsRes, paymentsRes, complaintsRes] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('is_occupied')
+      .eq('hostel_id', hostelId),
+
+    supabase
+      .from('payments')
+      .select('amount, status')
+      .eq('hostel_id', hostelId)
+      .gte('created_at', monthStart.toISOString()),
+
+    supabase
+      .from('complaints')
+      .select('created_at, resolved_at')
+      .eq('hostel_id', hostelId)
+      .not('resolved_at', 'is', null)
+      .order('resolved_at', { ascending: false })
+      .limit(20),
+  ])
+
+  const rooms = roomsRes.data ?? []
+  const occupiedRooms = rooms.filter((r) => r.is_occupied).length
+  const occupancy = rooms.length > 0
+    ? { occupied: occupiedRooms, total: rooms.length, rate: Math.round((occupiedRooms / rooms.length) * 100) }
+    : null
+
+  const payments = paymentsRes.data ?? []
+  const totalAmount     = payments.reduce((sum, p) => sum + p.amount, 0)
+  const collectedAmount = payments.filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)
+  const collection = totalAmount > 0
+    ? { collected: collectedAmount, total: totalAmount, rate: Math.round((collectedAmount / totalAmount) * 100) }
+    : null
+
+  const resolved = complaintsRes.data ?? []
+  const avgResolutionHours = resolved.length > 0
+    ? resolved.reduce((sum, c) => sum + (new Date(c.resolved_at!).getTime() - new Date(c.created_at).getTime()) / 3_600_000, 0) / resolved.length
+    : null
+
+  return { occupancy, collection, avgResolutionHours }
 }
 
 export async function updateComplaintWithNote(

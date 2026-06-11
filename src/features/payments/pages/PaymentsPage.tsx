@@ -114,7 +114,7 @@ export default function PaymentsPage() {
             )}
             <button
               onClick={handlePayAll}
-              className="bg-accent text-text-primary text-[14px] font-bold px-5 py-2 rounded-btn ml-auto active:scale-95 transition-transform"
+              className="bg-accent text-text-on-accent text-[14px] font-bold px-5 py-2 rounded-btn ml-auto active:scale-95 transition-transform"
             >
               How to Pay
             </button>

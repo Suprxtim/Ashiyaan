@@ -3,16 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bell, LogOut, Users, AlertTriangle, IndianRupee,
   UtensilsCrossed, ChevronRight, CheckCircle2, Clock, Flame, ScanLine,
+  Building2, TrendingUp, Timer,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
 import {
   getManagerStats, getMessOccupancy, getLiveGateMovements,
   getOpenComplaints, updateComplaintStatus, getPendingPayments,
+  getManagerAnalytics,
 } from '@/services/manager.service'
+import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { StarRating } from '@/components/ui/StarRating'
 import type { Database } from '@/types/database.types'
 
 type ComplaintPriority = Database['public']['Enums']['complaint_priority']
@@ -48,6 +52,18 @@ export default function ManagerDashboardPage() {
     refetchInterval: 60_000,
   })
 
+  const { data: feedbackSummary = [], isLoading: feedbackSummaryLoading } = useQuery({
+    queryKey: ['mess-feedback-summary', hostelId],
+    queryFn:  () => getMessFeedbackSummary(hostelId),
+    enabled:  !!hostelId,
+  })
+
+  const { data: recentFeedback = [] } = useQuery({
+    queryKey: ['mess-feedback-comments', hostelId],
+    queryFn:  () => getRecentFeedbackComments(hostelId, 5),
+    enabled:  !!hostelId,
+  })
+
   const { data: gateMovements = [], isLoading: gateLoading } = useQuery({
     queryKey: ['live-gate', hostelId],
     queryFn:  () => getLiveGateMovements(hostelId),
@@ -65,6 +81,12 @@ export default function ManagerDashboardPage() {
     queryKey: ['pending-payments', hostelId],
     queryFn:  () => getPendingPayments(hostelId, 5),
     enabled:  !!hostelId && isPg,
+  })
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ['manager-analytics', hostelId],
+    queryFn:  () => getManagerAnalytics(hostelId),
+    enabled:  !!hostelId,
   })
 
   const { mutate: resolveComplaint, isPending: resolving } = useMutation({
@@ -160,11 +182,12 @@ export default function ManagerDashboardPage() {
         </div>
 
         {/* ── Quick Links ── */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {[
-            { label: 'Post Notice',  path: '/community',        icon: '📢' },
-            { label: 'Edit Menu',    path: '/mess/menu-editor', icon: '🍽️' },
-            { label: 'Payments',     path: '/manager/payments', icon: '💳' },
+            { label: 'Post Notice',    path: '/community',        icon: '📢' },
+            { label: 'Edit Menu',      path: '/mess/menu-editor', icon: '🍽️' },
+            { label: 'Payments',       path: '/manager/payments', icon: '💳' },
+            { label: 'Leave Requests', path: '/manager/leave',    icon: '🗓️' },
           ].map(({ label, path, icon }) => (
             <button
               key={path}
@@ -175,6 +198,33 @@ export default function ManagerDashboardPage() {
               <span className="text-[11px] font-semibold text-text-secondary text-center">{label}</span>
             </button>
           ))}
+        </div>
+
+        {/* ── Analytics ── */}
+        <div className="bg-surface rounded-card shadow-card p-4">
+          <p className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest mb-3">
+            This Month
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <AnalyticsStat
+              icon={<Building2 size={16} className="text-primary" />}
+              label="Occupancy"
+              value={analyticsLoading ? null : analytics?.occupancy ? `${analytics.occupancy.rate}%` : '—'}
+              sub={analytics?.occupancy ? `${analytics.occupancy.occupied}/${analytics.occupancy.total} rooms` : 'No room data'}
+            />
+            <AnalyticsStat
+              icon={<TrendingUp size={16} className="text-success" />}
+              label="Collected"
+              value={analyticsLoading ? null : analytics?.collection ? `${analytics.collection.rate}%` : '—'}
+              sub={analytics?.collection ? formatCurrency(analytics.collection.collected) : 'No dues yet'}
+            />
+            <AnalyticsStat
+              icon={<Timer size={16} className="text-info" />}
+              label="Avg Resolve"
+              value={analyticsLoading ? null : formatResolutionTime(analytics?.avgResolutionHours ?? null)}
+              sub="Last 20 tickets"
+            />
+          </div>
         </div>
 
         {/* ── Mess Occupancy ── */}
@@ -196,6 +246,48 @@ export default function ManagerDashboardPage() {
                 Expected for dinner tonight{mess?.total ? ` · ${mess.total} total` : ''}
               </p>
             </>
+          )}
+        </div>
+
+        {/* ── Mess Ratings ── */}
+        <div className="bg-surface rounded-card shadow-card p-4">
+          <p className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest mb-3">
+            Mess Ratings · Last 7 Days
+          </p>
+          {feedbackSummaryLoading ? (
+            <Skeleton className="h-12" />
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {feedbackSummary.map(({ mealType, avgRating, count }) => (
+                <div key={mealType} className="text-center">
+                  <p className="text-[12px] font-semibold text-text-secondary capitalize mb-1">{mealType}</p>
+                  {count > 0 ? (
+                    <>
+                      <StarRating value={avgRating} size={14} className="justify-center" />
+                      <p className="text-[11px] text-text-tertiary mt-1">{avgRating.toFixed(1)} ({count})</p>
+                    </>
+                  ) : (
+                    <p className="text-[12px] text-text-tertiary">No ratings</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {recentFeedback.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-border space-y-2.5">
+              {recentFeedback.map((f) => (
+                <div key={f.id}>
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="text-[12px] font-semibold text-text-primary truncate">
+                      {f.profiles?.full_name ?? 'Resident'} · Room {f.profiles?.room_number ?? '—'}
+                    </span>
+                    <StarRating value={f.rating} size={11} className="flex-shrink-0" />
+                  </div>
+                  <p className="text-[12px] text-text-secondary line-clamp-2">{f.comment}</p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -431,6 +523,39 @@ export default function ManagerDashboardPage() {
         )}
 
       </div>
+    </div>
+  )
+}
+
+// ── Resolution time formatting ──────────────────────────────────
+
+function formatResolutionTime(hours: number | null): string {
+  if (hours === null) return '—'
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`
+  if (hours < 24) return `${hours.toFixed(1)}h`
+  return `${(hours / 24).toFixed(1)}d`
+}
+
+// ── Analytics Stat ────────────────────────────────────────────
+
+function AnalyticsStat({
+  icon, label, value, sub,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | null
+  sub: string
+}) {
+  return (
+    <div className="space-y-1 min-w-0">
+      <div className="flex items-center gap-1.5">
+        {icon}
+        <p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-wide truncate">{label}</p>
+      </div>
+      {value === null
+        ? <Skeleton className="h-6 w-12" />
+        : <p className="text-[20px] font-bold text-text-primary leading-tight">{value}</p>}
+      <p className="text-[11px] text-text-tertiary leading-tight truncate">{sub}</p>
     </div>
   )
 }

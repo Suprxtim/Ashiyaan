@@ -33,6 +33,9 @@
   --color-text-secondary: #5C5C5C;
   --color-text-tertiary: #9E9E9E;
 
+  /* Text that always sits on bright accent (yellow) surfaces — stays dark in both themes */
+  --color-text-on-accent: #1A1A1A;
+
   /* Border radius */
   --radius-pill: 9999px;
   --radius-card: 16px;
@@ -65,6 +68,7 @@
     color: var(--color-text-primary);
     min-height: 100dvh;
     box-sizing: border-box;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   *, *::before, *::after {
@@ -73,6 +77,44 @@
 
   #root {
     min-height: 100dvh;
+  }
+
+  /* ── Dark theme ── */
+  .dark {
+    --color-canvas: #11181A;
+    --color-surface: #1A2426;
+    --color-surface-raised: #232F32;
+    --color-border: #2E3B3E;
+
+    /* Primary (Teal) — brightened so it reads against dark surfaces while
+       still giving white text ~4:1 contrast on bg-primary blocks */
+    --color-primary: #3D8B8B;
+    --color-primary-light: #1F3536;
+    --color-primary-mid: #5AB8B8;
+
+    /* Accent (Yellow) — stays bright; only the hover/tint shades shift */
+    --color-accent-dark: #FFD740;
+    --color-accent-light: #332B0F;
+
+    /* Semantic */
+    --color-danger: #FF6B6B;
+    --color-danger-light: #3D1F1F;
+    --color-success: #5DD879;
+    --color-success-light: #1A3322;
+    --color-warning: #FFB74D;
+    --color-warning-light: #3D2E14;
+    --color-info: #64B5F6;
+    --color-info-light: #1A2E45;
+
+    /* Text */
+    --color-text-primary: #F0F2F2;
+    --color-text-secondary: #A8B5B7;
+    --color-text-tertiary: #6E7E81;
+
+    /* Shadows — black shadows disappear on dark backgrounds, so deepen them */
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-raised: 0 4px 12px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3);
+    --shadow-modal: 0 16px 48px rgba(0,0,0,0.6);
   }
 }
 
@@ -109,4 +151,9 @@
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: 6px;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #2E3B3E 25%, #1A2426 50%, #2E3B3E 75%);
+  background-size: 200% 100%;
 }

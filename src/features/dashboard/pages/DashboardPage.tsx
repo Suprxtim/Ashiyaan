@@ -189,16 +189,16 @@ export default function DashboardPage() {
                   onClick={() => navigate('/complaints/new')}
                 />
                 <QuickAction
-                  icon={<CreditCard size={26} className="text-text-primary" />}
+                  icon={<CreditCard size={26} className="text-text-on-accent" />}
                   label="Pay Dues"
                   className="bg-accent"
-                  labelClass="text-text-primary"
+                  labelClass="text-text-on-accent"
                   onClick={() => navigate('/payments')}
                 />
                 <QuickAction
                   icon={<span className="text-danger text-[20px] font-black tracking-tight">SOS</span>}
                   label="SOS"
-                  className="bg-[#FFE8E8]"
+                  className="bg-danger-light"
                   labelClass="text-danger"
                   onClick={() => navigate('/emergency')}
                 />
@@ -220,16 +220,16 @@ export default function DashboardPage() {
                   onClick={() => navigate('/complaints/new')}
                 />
                 <QuickAction
-                  icon={<CreditCard size={26} className="text-text-primary" />}
+                  icon={<CreditCard size={26} className="text-text-on-accent" />}
                   label="Pay Dues"
                   className="bg-accent"
-                  labelClass="text-text-primary"
+                  labelClass="text-text-on-accent"
                   onClick={() => navigate('/payments')}
                 />
                 <QuickAction
                   icon={<span className="text-danger text-[20px] font-black tracking-tight">SOS</span>}
                   label="SOS"
-                  className="bg-[#FFE8E8]"
+                  className="bg-danger-light"
                   labelClass="text-danger"
                   onClick={() => navigate('/emergency')}
                 />
@@ -251,16 +251,16 @@ export default function DashboardPage() {
                   onClick={() => navigate('/mess')}
                 />
                 <QuickAction
-                  icon={<CreditCard size={26} className="text-text-primary" />}
+                  icon={<CreditCard size={26} className="text-text-on-accent" />}
                   label="Pay Dues"
                   className="bg-accent"
-                  labelClass="text-text-primary"
+                  labelClass="text-text-on-accent"
                   onClick={() => navigate('/payments')}
                 />
                 <QuickAction
                   icon={<span className="text-danger text-[20px] font-black tracking-tight">SOS</span>}
                   label="SOS"
-                  className="bg-[#FFE8E8]"
+                  className="bg-danger-light"
                   labelClass="text-danger"
                   onClick={() => navigate('/emergency')}
                 />

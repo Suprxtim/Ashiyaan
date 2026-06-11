@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Zap, Droplets, Wifi, Sparkles, Armchair, MoreHorizontal,
-  CheckCircle2, Clock, AlertCircle, ChevronRight, Flame,
+  CheckCircle2, Clock, AlertCircle, ChevronRight, Flame, Search,
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -73,6 +73,7 @@ export default function ManagerComplaintsPage() {
   const userId    = user?.id ?? ''
 
   const [filterStatus, setFilterStatus] = useState<ComplaintStatus | undefined>(undefined)
+  const [search,       setSearch]       = useState('')
   const [resolvingId,  setResolvingId]  = useState<string | null>(null)
   const [resolveNote,  setResolveNote]  = useState('')
 
@@ -80,6 +81,17 @@ export default function ManagerComplaintsPage() {
     queryKey: ['manager-complaints', hostelId, filterStatus],
     queryFn:  () => getAllHostelComplaints(hostelId, filterStatus),
     enabled:  !!hostelId,
+  })
+
+  const filteredComplaints = complaints.filter((c) => {
+    if (!search) return true
+    const profile = c.profiles
+    const q = search.toLowerCase()
+    return (
+      c.title.toLowerCase().includes(q) ||
+      profile?.full_name?.toLowerCase().includes(q) ||
+      profile?.room_number?.toLowerCase().includes(q)
+    )
   })
 
   const { mutate: updateStatus, isPending: updating } = useMutation({
@@ -108,6 +120,18 @@ export default function ManagerComplaintsPage() {
 
       <div className="pt-14 space-y-4">
 
+        {/* ── Search ── */}
+        <div className="relative px-4">
+          <Search size={16} className="absolute left-7 top-1/2 -translate-y-1/2 text-text-tertiary" />
+          <input
+            type="text"
+            placeholder="Search by name, room or title..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-11 bg-surface border border-border rounded-input pl-9 pr-4 text-[14px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary"
+          />
+        </div>
+
         {/* ── Filter chips ── */}
         <div className="flex gap-2 overflow-x-auto px-4 pt-2 pb-1 scrollbar-none">
           {FILTERS.map(({ label, value }) => (
@@ -128,7 +152,7 @@ export default function ManagerComplaintsPage() {
         {/* ── Result count ── */}
         {!isLoading && (
           <p className="px-4 text-[12px] text-text-tertiary">
-            {complaints.length} complaint{complaints.length !== 1 ? 's' : ''}
+            {filteredComplaints.length} complaint{filteredComplaints.length !== 1 ? 's' : ''}
           </p>
         )}
 
@@ -144,19 +168,23 @@ export default function ManagerComplaintsPage() {
                 <Skeleton className="h-3 w-3/4" />
               </div>
             ))
-          ) : complaints.length === 0 ? (
+          ) : filteredComplaints.length === 0 ? (
             <div className="bg-surface rounded-card shadow-card p-8 text-center space-y-2">
               <CheckCircle2 size={32} className="text-success mx-auto" />
-              <p className="text-[16px] font-bold text-text-primary">All caught up!</p>
+              <p className="text-[16px] font-bold text-text-primary">
+                {search ? 'No matches found' : 'All caught up!'}
+              </p>
               <p className="text-[13px] text-text-secondary">
-                {filterStatus
+                {search
+                  ? 'Try a different name, room or title'
+                  : filterStatus
                   ? `No ${FILTERS.find((f) => f.value === filterStatus)?.label.toLowerCase()} complaints`
                   : 'No complaints submitted yet'}
               </p>
             </div>
           ) : (
-            complaints.map((c) => {
-              const profile   = (c as unknown as { profiles: { full_name: string; room_number: string | null } }).profiles
+            filteredComplaints.map((c) => {
+              const profile   = c.profiles
               const status    = STATUS_CONFIG[c.status]    ?? STATUS_CONFIG.submitted
               const catColor  = CATEGORY_COLORS[c.category] ?? CATEGORY_COLORS.other
               const catIcon   = CATEGORY_ICONS[c.category]  ?? CATEGORY_ICONS.other

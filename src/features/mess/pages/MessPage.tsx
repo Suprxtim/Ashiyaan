@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ChevronLeft, ChevronRight, PiggyBank, Coffee, UtensilsCrossed, Moon, ChevronRight as ChevronR } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, PiggyBank, Coffee, UtensilsCrossed, Moon, ChevronRight as ChevronR, MessageSquare } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { useMessMenu } from '../hooks/useMessMenu'
+import { useMessFeedback } from '../hooks/useMessFeedback'
 import { getInitials, getAvatarColor, formatCurrency } from '@/lib/utils'
 import { Toggle } from '@/components/ui/Toggle'
+import { StarRating } from '@/components/ui/StarRating'
+import { Button } from '@/components/ui/Button'
 
 const DAY_LABELS  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -38,6 +42,11 @@ export default function MessPage() {
 
   const selectedMeals = getMealState(selectedDate)
   const isPast = (date: string) => date < today
+
+  const { feedback, rate, rating } = useMessFeedback(selectedDate)
+  const [commentingMeal, setCommentingMeal] = useState<typeof MEALS[number]['key'] | null>(null)
+  const [commentDraft,   setCommentDraft]   = useState('')
+  const ratableMeals = MEALS.filter(({ key }) => selectedMeals[key])
 
   // Show week range label e.g. "May 26 – Jun 1"
   const firstDate = new Date(weekDates[0])
@@ -124,7 +133,7 @@ export default function MessPage() {
         {savedThisMonth > 0 && (
           <div className="mx-4 bg-accent-light rounded-card px-4 py-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
-              <PiggyBank size={18} className="text-text-primary" />
+              <PiggyBank size={18} className="text-text-on-accent" />
             </div>
             <div>
               <p className="text-[14px] font-bold text-text-primary">
@@ -177,6 +186,88 @@ export default function MessPage() {
           )}
         </div>
 
+        {/* ── Rate Your Meals ── */}
+        {selectedDate <= today && ratableMeals.length > 0 && (
+          <div className="px-4">
+            <p className="text-[17px] font-bold text-text-primary mb-3">Rate Your Meals</p>
+            <div className="bg-surface rounded-card shadow-card overflow-hidden">
+              {ratableMeals.map(({ key, label, Icon }, idx) => {
+                const existing = feedback.find((f) => f.meal_type === key)
+                const currentRating = existing?.rating ?? 0
+                const isCommenting = commentingMeal === key
+
+                return (
+                  <div key={key}>
+                    {idx > 0 && <div className="h-px bg-border mx-4" />}
+                    <div className="px-4 py-3.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 rounded-inner flex items-center justify-center flex-shrink-0 bg-primary-light">
+                            <Icon size={18} className="text-primary" />
+                          </div>
+                          <p className="text-[14px] font-semibold text-text-primary">{label}</p>
+                        </div>
+                        <StarRating
+                          value={currentRating}
+                          onChange={(v) => rate({ date: selectedDate, mealType: key, rating: v, comment: existing?.comment ?? null })}
+                        />
+                      </div>
+
+                      {currentRating > 0 && (
+                        <div className="mt-2 pl-12">
+                          {isCommenting ? (
+                            <div className="space-y-2">
+                              <textarea
+                                autoFocus
+                                value={commentDraft}
+                                onChange={(e) => setCommentDraft(e.target.value.slice(0, 200))}
+                                placeholder="Add a comment (optional)…"
+                                rows={2}
+                                className="w-full bg-surface-raised border border-border rounded-card px-3 py-2 text-[13px] text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => setCommentingMeal(null)}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  variant="dark"
+                                  size="sm"
+                                  loading={rating}
+                                  onClick={() => {
+                                    rate({ date: selectedDate, mealType: key, rating: currentRating, comment: commentDraft.trim() || null })
+                                    setCommentingMeal(null)
+                                  }}
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          ) : existing?.comment ? (
+                            <button
+                              onClick={() => { setCommentingMeal(key); setCommentDraft(existing.comment ?? '') }}
+                              className="text-[12px] text-text-secondary text-left flex items-start gap-1"
+                            >
+                              <MessageSquare size={12} className="mt-0.5 flex-shrink-0" />
+                              <span className="line-clamp-2">{existing.comment}</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setCommentingMeal(key); setCommentDraft('') }}
+                              className="text-[12px] text-primary font-semibold flex items-center gap-1"
+                            >
+                              <MessageSquare size={12} /> Add a comment
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ── Tomorrow's Menu ── */}
         <div className="px-4">
           <div className="flex items-center justify-between mb-3">
@@ -192,7 +283,7 @@ export default function MessPage() {
           {tomorrowMenu.length > 0 ? (
             <div className="bg-primary rounded-card overflow-hidden shadow-card">
               <div className="p-4">
-                <span className="bg-accent text-text-primary text-[10px] font-bold px-2.5 py-1 rounded-pill uppercase">
+                <span className="bg-accent text-text-on-accent text-[10px] font-bold px-2.5 py-1 rounded-pill uppercase">
                   Dinner Special
                 </span>
                 <p className="text-white text-[16px] font-bold mt-2 leading-snug">

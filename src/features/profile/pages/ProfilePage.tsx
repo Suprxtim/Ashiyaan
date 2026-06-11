@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Phone, Hash, Building2, LogOut, ChevronRight, Shield, Bell, HelpCircle, Info, Home, Users } from 'lucide-react'
+import { User, Phone, Hash, Building2, LogOut, ChevronRight, Shield, Bell, BellRing, HelpCircle, Info, Home, Users, Moon, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth.store'
+import { useThemeStore } from '@/store/theme.store'
 import { TopBar } from '@/components/layout/TopBar'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Toggle } from '@/components/ui/Toggle'
 import { getInitials, getAvatarColor } from '@/lib/utils'
+import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '@/services/push.service'
 
 const PROP_TYPE_CONFIG = {
   hostel: { label: 'Hostel',           color: 'bg-primary-light text-primary', Icon: Building2 },
@@ -16,10 +19,12 @@ const PROP_TYPE_CONFIG = {
 }
 
 export default function ProfilePage() {
-  const navigate  = useNavigate()
-  const user      = useAuthStore((s) => s.user)
-  const setUser   = useAuthStore((s) => s.setUser)
-  const clear     = useAuthStore((s) => s.clear)
+  const navigate    = useNavigate()
+  const user        = useAuthStore((s) => s.user)
+  const setUser     = useAuthStore((s) => s.setUser)
+  const clear       = useAuthStore((s) => s.clear)
+  const theme       = useThemeStore((s) => s.theme)
+  const toggleTheme = useThemeStore((s) => s.toggleTheme)
   const propType  = user?.hostel?.property_type
   const propConf  = propType ? PROP_TYPE_CONFIG[propType] : null
 
@@ -30,6 +35,35 @@ export default function ProfilePage() {
 
   const initials    = user ? getInitials(user.profile.full_name) : '?'
   const avatarColor = user ? getAvatarColor(user.profile.full_name) : '#1A3D3D'
+
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushEnabled,   setPushEnabled]   = useState(false)
+  const [pushBusy,      setPushBusy]      = useState(false)
+
+  useEffect(() => {
+    if (!isPushSupported()) return
+    setPushSupported(true)
+    getPushSubscription().then((sub) => setPushEnabled(!!sub))
+  }, [])
+
+  async function handlePushToggle(enabled: boolean) {
+    if (!user) return
+    setPushBusy(true)
+    try {
+      if (enabled) {
+        await subscribeToPush(user.id)
+        toast.success('Push notifications enabled')
+      } else {
+        await unsubscribeFromPush(user.id)
+        toast.success('Push notifications disabled')
+      }
+      setPushEnabled(enabled)
+    } catch {
+      toast.error('Could not update push notification settings')
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   async function handleSave() {
     if (!user) return
@@ -133,6 +167,44 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {/* ── My Room & Roommates ── */}
+        {user?.profile.room_number && (
+          <button
+            onClick={() => navigate('/my-room')}
+            className="w-full bg-surface rounded-card shadow-card px-4 py-3.5 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center text-primary flex-shrink-0">
+                <Users size={16} />
+              </span>
+              <div className="text-left">
+                <p className="text-[14px] font-semibold text-text-primary">My Room & Roommates</p>
+                <p className="text-[12px] text-text-tertiary">Room {user.profile.room_number}</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
+          </button>
+        )}
+
+        {/* ── Outpass / Leave Requests ── */}
+        {(propType === 'hostel' || propType === 'pg') && (
+          <button
+            onClick={() => navigate('/leave')}
+            className="w-full bg-surface rounded-card shadow-card px-4 py-3.5 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <span className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center text-primary flex-shrink-0">
+                <Calendar size={16} />
+              </span>
+              <div className="text-left">
+                <p className="text-[14px] font-semibold text-text-primary">Outpass / Leave Requests</p>
+                <p className="text-[12px] text-text-tertiary">Apply for leave or check status</p>
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
+          </button>
+        )}
+
         {/* ── Change place ── */}
         {!user?.profile.hostel_id && (
           <button
@@ -148,6 +220,22 @@ export default function ProfilePage() {
         <div>
           <p className="text-[13px] font-semibold text-text-tertiary uppercase tracking-wide mb-2 px-1">Settings</p>
           <div className="bg-surface rounded-card shadow-card overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <span className="text-text-secondary flex-shrink-0"><Moon size={16} /></span>
+              <span className="text-[14px] font-medium text-text-primary flex-1">Dark Mode</span>
+              <Toggle checked={theme === 'dark'} onChange={toggleTheme} />
+            </div>
+            {pushSupported && (
+              <>
+                <div className="h-px bg-border mx-4" />
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <span className="text-text-secondary flex-shrink-0"><BellRing size={16} /></span>
+                  <span className="text-[14px] font-medium text-text-primary flex-1">Push Notifications</span>
+                  <Toggle checked={pushEnabled} disabled={pushBusy} onChange={handlePushToggle} />
+                </div>
+              </>
+            )}
+            <div className="h-px bg-border mx-4" />
             <SettingsRow icon={<Bell size={16} />}       label="Notifications"    onClick={() => navigate('/notifications')} />
             <SettingsRow icon={<Shield size={16} />}     label="Privacy & Safety" onClick={() => toast('Your data is stored securely and never sold. Contact support@ashiyaan.app for data requests.')} />
             <SettingsRow icon={<HelpCircle size={16} />} label="Help & Support"   onClick={() => toast('Email us at support@ashiyaan.app or ask your warden for help.')} />
