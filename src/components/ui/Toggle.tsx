@@ -19,14 +19,14 @@ export function Toggle({ checked, onChange, label, disabled, className }: Toggle
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={cn(
-          'relative w-12 h-[26px] rounded-pill transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          'relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           checked ? 'bg-primary' : 'bg-border'
         )}
       >
         <span
           className={cn(
-            'absolute top-[2px] w-[22px] h-[22px] bg-white rounded-full shadow transition-transform duration-200',
-            checked ? 'translate-x-[22px]' : 'translate-x-[2px]'
+            'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200',
+            checked ? 'translate-x-5' : 'translate-x-0'
           )}
         />
       </button>
