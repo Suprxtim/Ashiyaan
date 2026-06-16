@@ -59,7 +59,7 @@ export default function SignupPage() {
     if (error) setError(error.message)
   }
 
-  async function handleSendOtp(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSendOtp(e: { preventDefault(): void }) {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
@@ -75,7 +75,7 @@ export default function SignupPage() {
     setStep('otp')
   }
 
-  async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
+  async function handleVerifyOtp(e: { preventDefault(): void }) {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
@@ -175,13 +175,13 @@ export default function SignupPage() {
               <span className="font-semibold text-text-primary">{form.email}</span>
             </p>
             <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <OtpInput value={otp} onChange={setOtp} error={error} autoFocus />
+              <OtpInput value={otp} onChange={setOtp} error={error} autoFocus length={8} />
               <Button
                 type="submit"
                 fullWidth
                 variant="dark"
                 loading={loading}
-                disabled={otp.length < 6}
+                disabled={otp.length < 8}
               >
                 Verify & Continue
               </Button>
