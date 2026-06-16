@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Mail, Phone, ArrowRight, RefreshCw } from 'lucide-react'
+import { User, Mail, ArrowRight, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -21,23 +21,15 @@ function GoogleIcon() {
   )
 }
 
-
 export default function SignupPage() {
-  const [step,         setStep]         = useState<Step>('form')
-  const [loading,      setLoading]      = useState(false)
+  const [step,          setStep]          = useState<Step>('form')
+  const [loading,       setLoading]       = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [error,        setError]        = useState('')
-  const [otp,          setOtp]          = useState('')
-  const [resendTimer,  setResendTimer]  = useState(0)
+  const [error,         setError]         = useState('')
+  const [otp,           setOtp]           = useState('')
+  const [resendTimer,   setResendTimer]   = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
-
-  function normalizePhone(raw: string): string {
-    const digits = raw.replace(/\D/g, '')
-    if (digits.length === 10) return `+91${digits}`
-    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
-    return raw.trim()
-  }
+  const [form, setForm] = useState({ full_name: '', email: '' })
 
   function set(field: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -70,13 +62,11 @@ export default function SignupPage() {
   async function handleSendOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(''); setLoading(true)
-    const phone = normalizePhone(form.phone)
-    setForm((f) => ({ ...f, phone }))
     const { error } = await supabase.auth.signInWithOtp({
-      phone,
+      email: form.email,
       options: {
         shouldCreateUser: true,
-        data: { full_name: form.full_name, email: form.email },
+        data: { full_name: form.full_name },
       },
     })
     setLoading(false)
@@ -89,9 +79,9 @@ export default function SignupPage() {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
-      phone: form.phone,
+      email: form.email,
       token: otp,
-      type: 'sms',
+      type: 'email',
     })
     setLoading(false)
     if (error) {
@@ -100,20 +90,15 @@ export default function SignupPage() {
           ? 'Code is invalid or expired. Request a new one.'
           : error.message
       )
-      return
     }
-    // No manual navigate — GuestGuard redirects to /dashboard, then
-    // OnboardingGuard redirects to /onboarding since hostel_id is null for new users.
+    // No manual navigate — GuestGuard → /dashboard → OnboardingGuard → /onboarding for new users
   }
 
   async function handleResendOtp() {
     setError(''); setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      phone: form.phone,
-      options: {
-        shouldCreateUser: true,
-        data: { full_name: form.full_name, email: form.email },
-      },
+      email: form.email,
+      options: { shouldCreateUser: true, data: { full_name: form.full_name } },
     })
     setLoading(false)
     if (error) { setError(error.message); return }
@@ -131,7 +116,7 @@ export default function SignupPage() {
         <p className="text-[14px] text-text-secondary mt-1">Join Ashiyaan</p>
       </div>
 
-      {/* Google — above card so it's a top-level choice, not buried in the phone form */}
+      {/* Google — top-level choice, separate from the email form */}
       {step === 'form' && (
         <div className="w-full max-w-sm mb-3">
           <button
@@ -140,27 +125,23 @@ export default function SignupPage() {
             disabled={googleLoading || loading}
             className="w-full h-12 flex items-center justify-center gap-3 border border-border rounded-input bg-surface text-[14px] font-semibold text-text-primary hover:bg-surface-raised transition-colors disabled:opacity-60 shadow-card"
           >
-            {googleLoading ? (
-              <span className="w-4 h-4 border-2 border-text-tertiary border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <GoogleIcon />
-            )}
+            {googleLoading
+              ? <span className="w-4 h-4 border-2 border-text-tertiary border-t-transparent rounded-full animate-spin" />
+              : <GoogleIcon />}
             Continue with Google
           </button>
           <div className="flex items-center gap-3 mt-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-[12px] text-text-tertiary font-medium">or sign up with phone</span>
+            <span className="text-[12px] text-text-tertiary font-medium">or sign up with email</span>
             <div className="flex-1 h-px bg-border" />
           </div>
         </div>
       )}
 
       <div className="w-full max-w-sm bg-surface rounded-card shadow-card p-6">
-
         {step === 'form' ? (
           <>
             <h2 className="text-[18px] font-bold text-text-primary mb-5">Your details</h2>
-
             <form onSubmit={handleSendOtp} className="space-y-4">
               <Input
                 label="Full name"
@@ -180,15 +161,6 @@ export default function SignupPage() {
                 leftIcon={<Mail size={16} />}
                 required
               />
-              <Input
-                label="Phone number"
-                type="tel"
-                placeholder="+919876543210"
-                value={form.phone}
-                onChange={set('phone')}
-                leftIcon={<Phone size={16} />}
-                required
-              />
               {error && <p className="text-[12px] text-danger">{error}</p>}
               <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
                 Send Verification Code
@@ -197,18 +169,13 @@ export default function SignupPage() {
           </>
         ) : (
           <>
-            <h2 className="text-[18px] font-bold text-text-primary mb-1">Verify phone</h2>
+            <h2 className="text-[18px] font-bold text-text-primary mb-1">Check your email</h2>
             <p className="text-[13px] text-text-secondary mb-5">
-              Enter the code sent to{' '}
-              <span className="font-semibold text-text-primary">{form.phone}</span>
+              Enter the 6-digit code sent to{' '}
+              <span className="font-semibold text-text-primary">{form.email}</span>
             </p>
             <form onSubmit={handleVerifyOtp} className="space-y-5">
-              <OtpInput
-                value={otp}
-                onChange={setOtp}
-                error={error}
-                autoFocus
-              />
+              <OtpInput value={otp} onChange={setOtp} error={error} autoFocus />
               <Button
                 type="submit"
                 fullWidth
@@ -218,15 +185,13 @@ export default function SignupPage() {
               >
                 Verify & Continue
               </Button>
-
-              {/* Resend row */}
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
                   onClick={() => { setStep('form'); setOtp(''); setError('') }}
                   className="text-[13px] text-text-secondary"
                 >
-                  Change phone number
+                  Change email
                 </button>
                 {resendTimer > 0 ? (
                   <span className="text-[13px] text-text-tertiary flex items-center gap-1">

@@ -33,7 +33,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate()
   const setUser  = useAuthStore((s) => s.setUser)
 
-  const [step,     setStep]     = useState<Step>('choose')
+  const [step,     setStep]     = useState<Step>('join')
   const [propType, setPropType] = useState<PropType>('hostel')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
@@ -144,8 +144,8 @@ export default function OnboardingPage() {
     }
   }
 
-  const totalSteps = step === 'join' ? 2 : 3
-  const currentStep = step === 'choose' ? 1 : step === 'join' ? 2 : step === 'create-type' ? 2 : step === 'create-form' ? 3 : 3
+  const totalSteps  = step === 'join' ? 1 : 2
+  const currentStep = step === 'join' ? 1 : step === 'create-type' ? 1 : step === 'create-form' ? 2 : 2
 
   return (
     <div className="min-h-dvh bg-canvas flex flex-col items-center justify-center px-5 py-10">
@@ -176,69 +176,24 @@ export default function OnboardingPage() {
 
       <div className="w-full max-w-sm">
 
-        {/* ── Step 1: Choose ── */}
-        {step === 'choose' && (
-          <div className="space-y-3">
-            <p className="text-[20px] font-bold text-text-primary text-center mb-5">
-              Welcome! How would you like to get started?
-            </p>
-
-            <button
-              onClick={() => setStep('join')}
-              className="w-full bg-surface rounded-card shadow-card p-5 flex items-center gap-4 active:scale-[0.98] transition-transform text-left border-2 border-transparent hover:border-primary/20"
-            >
-              <div className="w-12 h-12 bg-primary-light rounded-inner flex items-center justify-center flex-shrink-0">
-                <Hash size={22} className="text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-[16px] font-bold text-text-primary">Join an existing place</p>
-                <p className="text-[13px] text-text-secondary mt-0.5">
-                  I have a code from my warden or flatmate
-                </p>
-              </div>
-              <ArrowRight size={18} className="text-text-tertiary flex-shrink-0" />
-            </button>
-
-            <button
-              onClick={() => setStep('create-type')}
-              className="w-full bg-surface rounded-card shadow-card p-5 flex items-center gap-4 active:scale-[0.98] transition-transform text-left border-2 border-transparent hover:border-primary/20"
-            >
-              <div className="w-12 h-12 bg-accent-light rounded-inner flex items-center justify-center flex-shrink-0">
-                <Building2 size={22} className="text-warning" />
-              </div>
-              <div className="flex-1">
-                <p className="text-[16px] font-bold text-text-primary">Set up a new place</p>
-                <p className="text-[13px] text-text-secondary mt-0.5">
-                  I'm a warden, landlord or setting up a flat
-                </p>
-              </div>
-              <ArrowRight size={18} className="text-text-tertiary flex-shrink-0" />
-            </button>
-          </div>
-        )}
-
-        {/* ── Step 2a: Join by code ── */}
+        {/* ── Join by code (default for students) ── */}
         {step === 'join' && (
           <div className="bg-surface rounded-card shadow-card p-6">
-            <button onClick={() => { setStep('choose'); setError('') }} className="flex items-center gap-1.5 text-[13px] text-text-secondary mb-5">
-              <ArrowLeft size={14} /> Back
-            </button>
             <h2 className="text-[20px] font-bold text-text-primary mb-1">Enter your place code</h2>
             <p className="text-[13px] text-text-secondary mb-5">
-              Ask your warden or flatmate — it looks like <span className="font-semibold text-text-primary">SUN-281</span>
+              Your warden will give you a code — it looks like{' '}
+              <span className="font-semibold text-text-primary">SUN-281</span>
             </p>
             <form onSubmit={handleJoin} className="space-y-4">
-              <div className="relative">
-                <Input
-                  label="Place code"
-                  placeholder="e.g. SUN-281"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  leftIcon={<Hash size={16} />}
-                  required
-                  autoFocus
-                />
-              </div>
+              <Input
+                label="Place code"
+                placeholder="e.g. SUN-281"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                leftIcon={<Hash size={16} />}
+                required
+                autoFocus
+              />
               {error && (
                 <div className="bg-danger-light rounded-inner px-3 py-2">
                   {error.includes('Tap to reload') ? (
@@ -251,16 +206,28 @@ export default function OnboardingPage() {
                 </div>
               )}
               <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
-                Join Place
+                Join Hostel
               </Button>
             </form>
+
+            {/* Warden / manager path — secondary, not the default */}
+            <div className="mt-6 pt-5 border-t border-border text-center">
+              <p className="text-[12px] text-text-tertiary mb-2">Are you a warden or manager?</p>
+              <button
+                type="button"
+                onClick={() => { setStep('create-type'); setError('') }}
+                className="text-[13px] text-info font-semibold flex items-center gap-1 mx-auto"
+              >
+                Set up a new hostel / PG <ArrowRight size={13} />
+              </button>
+            </div>
           </div>
         )}
 
         {/* ── Step 2b: Property type ── */}
         {step === 'create-type' && (
           <div>
-            <button onClick={() => { setStep('choose'); setError('') }} className="flex items-center gap-1.5 text-[13px] text-text-secondary mb-4 px-1">
+            <button onClick={() => { setStep('join'); setError('') }} className="flex items-center gap-1.5 text-[13px] text-text-secondary mb-4 px-1">
               <ArrowLeft size={14} /> Back
             </button>
             <p className="text-[20px] font-bold text-text-primary px-1 mb-5">

@@ -8,6 +8,7 @@ import type { PropertyType } from '@/types/app.types'
 
 // ── Lazy pages ────────────────────────────────────────────────
 
+const LandingPage = lazy(() => import('@/features/auth/pages/LandingPage'))
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage'))
 const AuthCallbackPage = lazy(() => import('@/features/auth/pages/AuthCallbackPage'))
@@ -108,6 +109,18 @@ function SuspenseOutlet() {
   )
 }
 
+// Shows landing page for guests; redirects authenticated users to their dashboard.
+function RootRedirect() {
+  const { session, isLoading } = useAuthStore()
+  if (isLoading && !session) return <PageLoader />
+  if (session) return <Navigate to="/dashboard" replace />
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <LandingPage />
+    </Suspense>
+  )
+}
+
 // Redirect students away from manager/warden-only pages.
 function StaffOnlyGuard() {
   const { user, isLoading } = useAuthStore()
@@ -133,8 +146,7 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
-      // Root redirect
-      { path: '/', element: <Navigate to="/dashboard" replace /> },
+      { path: '/', element: <RootRedirect /> },
 
       // Guest-only routes (redirect to /dashboard if already logged in)
       {
