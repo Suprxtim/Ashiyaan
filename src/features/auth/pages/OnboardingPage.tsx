@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Building2, Home, Users, ArrowRight, ArrowLeft,
+  Building2, Home, ArrowRight, ArrowLeft,
   MapPin, Phone, Hash, CheckCircle2, Copy, Share2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
 type Step     = 'choose' | 'join' | 'create-type' | 'create-form' | 'success'
-type PropType = 'hostel' | 'pg' | 'shared'
+type PropType = 'hostel' | 'pg'
 
 const PROP_TYPES: { type: PropType; title: string; desc: string; color: string; textColor: string; Icon: React.ElementType }[] = [
   {
@@ -26,12 +26,6 @@ const PROP_TYPES: { type: PropType; title: string; desc: string; color: string; 
     title: 'PG / Guest House',
     desc: 'Paying guest accommodation. Smaller scale, landlord managed.',
     color: 'bg-accent-light border-accent/30', textColor: 'text-warning',
-  },
-  {
-    type: 'shared', Icon: Users,
-    title: 'Shared Apartment',
-    desc: '2–6 flatmates living together. Equal roles, expense splitting, no warden.',
-    color: 'bg-success-light border-success/30', textColor: 'text-success',
   },
 ]
 
@@ -95,7 +89,7 @@ export default function OnboardingPage() {
     const ok = await refreshProfile()
     setLoading(false)
     if (!ok) {
-      setError('Joined successfully, but we could not load your profile. Please refresh the page.')
+      setError('Joined successfully, but your profile could not load. Tap to reload.')
       return
     }
     const result = data as { name: string; property_type: string }
@@ -126,7 +120,7 @@ export default function OnboardingPage() {
     const ok = await refreshProfile()
     setLoading(false)
     if (!ok) {
-      setError('Place created, but we could not load your profile. Please refresh the page.')
+      setError('Place created, but your profile could not load. Tap to reload.')
       return
     }
     setCreatedCode(result.hostel_code)
@@ -247,7 +241,13 @@ export default function OnboardingPage() {
               </div>
               {error && (
                 <div className="bg-danger-light rounded-inner px-3 py-2">
-                  <p className="text-[13px] text-danger">{error}</p>
+                  {error.includes('Tap to reload') ? (
+                    <button type="button" onClick={() => window.location.reload()} className="text-[13px] text-danger underline w-full text-left">
+                      {error}
+                    </button>
+                  ) : (
+                    <p className="text-[13px] text-danger">{error}</p>
+                  )}
                 </div>
               )}
               <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
@@ -305,18 +305,12 @@ export default function OnboardingPage() {
               )
             })()}
 
-            <h2 className="text-[20px] font-bold text-text-primary mb-5">
-              {propType === 'shared' ? 'Tell us about your apartment' : 'Set up your place'}
-            </h2>
+            <h2 className="text-[20px] font-bold text-text-primary mb-5">Set up your place</h2>
 
             <form onSubmit={handleCreate} className="space-y-4">
               <Input
-                label={propType === 'shared' ? 'Apartment name' : propType === 'pg' ? 'PG name' : 'Hostel name'}
-                placeholder={
-                  propType === 'shared' ? 'e.g. Skyline Flat 3B' :
-                  propType === 'pg'     ? 'e.g. Sharma PG'       :
-                                          'e.g. Sunrise Boys Hostel'
-                }
+                label={propType === 'pg' ? 'PG name' : 'Hostel name'}
+                placeholder={propType === 'pg' ? 'e.g. Sharma PG' : 'e.g. Sunrise Boys Hostel'}
                 value={form.name}
                 onChange={setF('name')}
                 leftIcon={<Building2 size={16} />}
@@ -329,26 +323,30 @@ export default function OnboardingPage() {
                 <Input label="State" placeholder="Karnataka" value={form.state} onChange={setF('state')} />
               </div>
 
-              {propType !== 'shared' && (
-                <Input label="Contact phone" type="tel" placeholder="+91 98765 43210" value={form.contact_phone} onChange={setF('contact_phone')} leftIcon={<Phone size={16} />} />
-              )}
+              <Input label="Contact phone" type="tel" placeholder="+91 98765 43210" value={form.contact_phone} onChange={setF('contact_phone')} leftIcon={<Phone size={16} />} />
 
               <Input
-                label={propType === 'shared' ? 'Number of flatmates' : 'Total rooms'}
+                label="Total rooms"
                 type="number"
-                placeholder={propType === 'shared' ? '3' : '60'}
+                placeholder="60"
                 value={form.total_rooms}
                 onChange={setF('total_rooms')}
               />
 
               {error && (
                 <div className="bg-danger-light rounded-inner px-3 py-2">
-                  <p className="text-[13px] text-danger">{error}</p>
+                  {error.includes('Tap to reload') ? (
+                    <button type="button" onClick={() => window.location.reload()} className="text-[13px] text-danger underline w-full text-left">
+                      {error}
+                    </button>
+                  ) : (
+                    <p className="text-[13px] text-danger">{error}</p>
+                  )}
                 </div>
               )}
 
               <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
-                Create {propType === 'shared' ? 'Apartment' : propType === 'pg' ? 'PG' : 'Hostel'}
+                Create {propType === 'pg' ? 'PG' : 'Hostel'}
               </Button>
             </form>
           </div>
@@ -364,7 +362,7 @@ export default function OnboardingPage() {
               <div>
                 <p className="text-[20px] font-bold text-text-primary">{createdName} is ready!</p>
                 <p className="text-[13px] text-text-secondary mt-1">
-                  Share the code below with your {propType === 'shared' ? 'flatmates' : 'residents'}
+                  Share the code below with your residents
                 </p>
               </div>
 
@@ -373,7 +371,7 @@ export default function OnboardingPage() {
                 <p className="text-[11px] font-semibold text-text-tertiary uppercase tracking-widest">Place Code</p>
                 <p className="text-[36px] font-black text-primary tracking-[0.1em]">{createdCode}</p>
                 <p className="text-[12px] text-text-secondary">
-                  Anyone with this code can join your {propType === 'shared' ? 'apartment' : propType}
+                  Anyone with this code can join your {propType}
                 </p>
               </div>
 
@@ -396,7 +394,7 @@ export default function OnboardingPage() {
             <Button
               fullWidth
               variant="dark"
-              onClick={() => navigate(propType === 'shared' ? '/dashboard' : '/manager')}
+              onClick={() => navigate('/manager')}
               rightIcon={<ArrowRight size={16} />}
             >
               Go to Dashboard

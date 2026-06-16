@@ -32,7 +32,7 @@ function Divider() {
 }
 
 export default function LoginPage() {
-  const [mode, setMode] = useState<Mode>('password')
+  const [mode, setMode] = useState<Mode>('otp-send')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -56,6 +56,13 @@ export default function LoginPage() {
 
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current) }, [])
 
+  function normalizePhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '')
+    if (digits.length === 10) return `+91${digits}`
+    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
+    return raw.trim()
+  }
+
   async function handleGoogleSignIn() {
     setError('')
     setGoogleLoading(true)
@@ -68,7 +75,7 @@ export default function LoginPage() {
     if (error) setError(error.message)
   }
 
-  async function handlePassword(e: React.FormEvent) {
+  async function handlePassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -84,12 +91,14 @@ export default function LoginPage() {
     // No manual navigate — GuestGuard redirects automatically once session is set
   }
 
-  async function handleSendOtp(e: React.FormEvent) {
+  async function handleSendOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
+    const normalized = normalizePhone(phone)
+    setPhone(normalized)
     const { error } = await supabase.auth.signInWithOtp({
-      phone,
+      phone: normalized,
       options: {
         shouldCreateUser: false,
       },
@@ -107,7 +116,7 @@ export default function LoginPage() {
     setMode('otp-verify')
   }
 
-  async function handleVerifyOtp(e: React.FormEvent) {
+  async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -127,7 +136,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithOtp({
-      phone,
+      phone: normalizePhone(phone),
       options: {
         shouldCreateUser: false,
       },
@@ -138,7 +147,7 @@ export default function LoginPage() {
     setOtp('')
   }
 
-  async function handleForgotPassword(e: React.FormEvent) {
+  async function handleForgotPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)

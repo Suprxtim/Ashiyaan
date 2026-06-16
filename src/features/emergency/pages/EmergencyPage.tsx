@@ -6,14 +6,14 @@ import { TopBar } from '@/components/layout/TopBar'
 import { toast } from 'sonner'
 
 const NATIONAL_CONTACTS = [
-  { label: 'Hospital',  number: '108' },
-  { label: 'Police',    number: '100' },
+  { label: 'Hospital', number: '108' },
+  { label: 'Police', number: '100' },
   { label: 'Ambulance', number: '102' },
-  { label: 'Fire',      number: '101' },
+  { label: 'Fire', number: '101' },
 ]
 
 export default function EmergencyPage() {
-  const user     = useAuthStore((s) => s.user)
+  const user = useAuthStore((s) => s.user)
 
   // Build contact list: hostel contact first (if available), then national numbers
   const hostelPhone = (user?.hostel as unknown as { contact_phone?: string | null })?.contact_phone
@@ -25,7 +25,7 @@ export default function EmergencyPage() {
   ]
   const [holding, setHolding] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [fired, setFired]   = useState(false)
+  const [fired, setFired] = useState(false)
 
   const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -65,16 +65,16 @@ export default function EmergencyPage() {
       )
       lat = pos.coords.latitude
       lng = pos.coords.longitude
-    } catch {}
+    } catch { }
 
     // Only attempt DB insert when the user is linked to a hostel
     if (user && user.profile.hostel_id) {
       await supabase.from('sos_incidents').insert({
-        user_id:      user.id,
-        hostel_id:    user.profile.hostel_id,
+        user_id: user.id,
+        hostel_id: user.profile.hostel_id,
         location_lat: lat,
         location_lng: lng,
-        status:       'active',
+        status: 'active',
       })
     }
   }
@@ -105,9 +105,8 @@ export default function EmergencyPage() {
               onPointerDown={startHold}
               onPointerUp={cancelHold}
               onPointerLeave={cancelHold}
-              className={`relative w-28 h-28 rounded-full flex flex-col items-center justify-center gap-1 select-none transition-transform active:scale-95 overflow-hidden ${
-                fired ? 'bg-danger/80' : 'bg-danger'
-              } shadow-raised`}
+              className={`relative w-28 h-28 rounded-full flex flex-col items-center justify-center gap-1 select-none transition-transform active:scale-95 overflow-hidden ${fired ? 'bg-danger/80' : 'bg-danger'
+                } shadow-raised`}
               style={{ WebkitUserSelect: 'none' }}
             >
               {/* Hold progress arc */}

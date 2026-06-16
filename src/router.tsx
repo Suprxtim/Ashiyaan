@@ -8,44 +8,44 @@ import type { PropertyType } from '@/types/app.types'
 
 // ── Lazy pages ────────────────────────────────────────────────
 
-const LoginPage          = lazy(() => import('@/features/auth/pages/LoginPage'))
-const SignupPage         = lazy(() => import('@/features/auth/pages/SignupPage'))
-const AuthCallbackPage   = lazy(() => import('@/features/auth/pages/AuthCallbackPage'))
-const OnboardingPage     = lazy(() => import('@/features/auth/pages/OnboardingPage'))
+const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
+const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage'))
+const AuthCallbackPage = lazy(() => import('@/features/auth/pages/AuthCallbackPage'))
+const OnboardingPage = lazy(() => import('@/features/auth/pages/OnboardingPage'))
 
-const DashboardPage   = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
+const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 
-const GatePassPage    = lazy(() => import('@/features/gate-pass/pages/GatePassPage'))
+const GatePassPage = lazy(() => import('@/features/gate-pass/pages/GatePassPage'))
 const PassHistoryPage = lazy(() => import('@/features/gate-pass/pages/PassHistoryPage'))
 
-const MessPage        = lazy(() => import('@/features/mess/pages/MessPage'))
-const MessBillPage    = lazy(() => import('@/features/mess/pages/MessBillPage'))
+const MessPage = lazy(() => import('@/features/mess/pages/MessPage'))
+const MessBillPage = lazy(() => import('@/features/mess/pages/MessBillPage'))
 
-const ComplaintsPage      = lazy(() => import('@/features/complaints/pages/ComplaintsPage'))
-const NewComplaintPage    = lazy(() => import('@/features/complaints/pages/NewComplaintPage'))
+const ComplaintsPage = lazy(() => import('@/features/complaints/pages/ComplaintsPage'))
+const NewComplaintPage = lazy(() => import('@/features/complaints/pages/NewComplaintPage'))
 const ComplaintDetailPage = lazy(() => import('@/features/complaints/pages/ComplaintDetailPage'))
 
-const PaymentsPage    = lazy(() => import('@/features/payments/pages/PaymentsPage'))
+const PaymentsPage = lazy(() => import('@/features/payments/pages/PaymentsPage'))
 
-const EmergencyPage   = lazy(() => import('@/features/emergency/pages/EmergencyPage'))
+const EmergencyPage = lazy(() => import('@/features/emergency/pages/EmergencyPage'))
 
-const ProfilePage     = lazy(() => import('@/features/profile/pages/ProfilePage'))
+const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'))
 
-const MyRoomPage      = lazy(() => import('@/features/room/pages/MyRoomPage'))
+const MyRoomPage = lazy(() => import('@/features/room/pages/MyRoomPage'))
 
-const LeaveRequestsPage    = lazy(() => import('@/features/leave/pages/LeaveRequestsPage'))
-const NewLeaveRequestPage  = lazy(() => import('@/features/leave/pages/NewLeaveRequestPage'))
+const LeaveRequestsPage = lazy(() => import('@/features/leave/pages/LeaveRequestsPage'))
+const NewLeaveRequestPage = lazy(() => import('@/features/leave/pages/NewLeaveRequestPage'))
 
-const ManagerDashboardPage    = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
-const ManagerComplaintsPage   = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
+const ManagerDashboardPage = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
+const ManagerComplaintsPage = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
 const ManagerLeaveRequestsPage = lazy(() => import('@/features/leave/pages/ManagerLeaveRequestsPage'))
-const ManagerSosPage          = lazy(() => import('@/features/emergency/pages/ManagerSosPage'))
-const ExpensesPage         = lazy(() => import('@/features/expenses/pages/ExpensesPage'))
-const ScanPage             = lazy(() => import('@/features/gate-pass/pages/ScanPage'))
-const CommunityPage        = lazy(() => import('@/features/community/pages/CommunityPage'))
-const MessMenuEditorPage      = lazy(() => import('@/features/mess/pages/MessMenuEditorPage'))
-const ManagerPaymentsPage     = lazy(() => import('@/features/payments/pages/ManagerPaymentsPage'))
-const NotificationsPage       = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
+const ManagerSosPage = lazy(() => import('@/features/emergency/pages/ManagerSosPage'))
+const ExpensesPage = lazy(() => import('@/features/expenses/pages/ExpensesPage'))
+const ScanPage = lazy(() => import('@/features/gate-pass/pages/ScanPage'))
+const CommunityPage = lazy(() => import('@/features/community/pages/CommunityPage'))
+const MessMenuEditorPage = lazy(() => import('@/features/mess/pages/MessMenuEditorPage'))
+const ManagerPaymentsPage = lazy(() => import('@/features/payments/pages/ManagerPaymentsPage'))
+const NotificationsPage = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
 
 // ── Root layout — initialises auth BEFORE any guard runs ─────
 
@@ -133,133 +133,135 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
-  // Root redirect
-  { path: '/', element: <Navigate to="/dashboard" replace /> },
+      // Root redirect
+      { path: '/', element: <Navigate to="/dashboard" replace /> },
 
-  // Guest-only routes (redirect to /dashboard if already logged in)
-  {
-    element: <GuestGuard />,
-    children: [
+      // Guest-only routes (redirect to /dashboard if already logged in)
       {
-        element: <SuspenseOutlet />,
-        children: [
-          { path: '/login',          element: <LoginPage />         },
-          { path: '/signup',         element: <SignupPage />        },
-          { path: '/auth/callback',  element: <AuthCallbackPage />  },
-        ],
-      },
-    ],
-  },
-
-  // Authenticated routes (wrapped in AppShell)
-  {
-    element: <AuthGuard />,
-    children: [
-      // Onboarding — only for users who haven't joined/created a hostel yet
-      {
-        element: <OnboardingPageGuard />,
+        element: <GuestGuard />,
         children: [
           {
             element: <SuspenseOutlet />,
             children: [
-              { path: '/onboarding', element: <OnboardingPage /> },
+              { path: '/login', element: <LoginPage /> },
+              { path: '/signup', element: <SignupPage /> },
+              { path: '/auth/callback', element: <AuthCallbackPage /> },
             ],
           },
         ],
       },
+
+      // Authenticated routes (wrapped in AppShell)
       {
-        element: <OnboardingGuard />,
+        element: <AuthGuard />,
         children: [
-      {
-        element: <AppShell />,
-        children: [
+          // Onboarding — only for users who haven't joined/created a hostel yet
           {
-            element: <SuspenseOutlet />,
+            element: <OnboardingPageGuard />,
             children: [
-              // Student routes — available to every property type
-              { path: '/dashboard',             element: <DashboardPage /> },
-              { path: '/complaints',            element: <ComplaintsPage /> },
-              { path: '/complaints/new',        element: <NewComplaintPage /> },
-              { path: '/complaints/:id',        element: <ComplaintDetailPage /> },
-              { path: '/payments',              element: <PaymentsPage /> },
-              { path: '/emergency',             element: <EmergencyPage /> },
-              { path: '/profile',               element: <ProfilePage /> },
-              { path: '/my-room',               element: <MyRoomPage /> },
-              { path: '/community',             element: <CommunityPage /> },
-              { path: '/notifications',         element: <NotificationsPage /> },
-
-              // Gate Pass — hostel only (PG/Shared have no gate infrastructure)
               {
-                element: <PropertyTypeGuard allow={['hostel']} />,
+                element: <SuspenseOutlet />,
                 children: [
-                  { path: '/gate-pass',         element: <GatePassPage /> },
-                  { path: '/gate-pass/history', element: <PassHistoryPage /> },
-                ],
-              },
-
-              // Mess — hostel + PG (Shared apartments don't have a mess)
-              {
-                element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
-                children: [
-                  { path: '/mess',      element: <MessPage /> },
-                  { path: '/mess/bill', element: <MessBillPage /> },
-                ],
-              },
-
-              // Outpass / Leave Requests — hostel + PG (Shared apartments have no warden to approve)
-              {
-                element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
-                children: [
-                  { path: '/leave',     element: <LeaveRequestsPage /> },
-                  { path: '/leave/new', element: <NewLeaveRequestPage /> },
-                ],
-              },
-
-              // Shared apartment expense splitting
-              {
-                element: <PropertyTypeGuard allow={['shared']} />,
-                children: [
-                  { path: '/expenses', element: <ExpensesPage /> },
-                ],
-              },
-
-              // Manager/warden-only routes
-              {
-                element: <StaffOnlyGuard />,
-                children: [
-                  { path: '/manager',            element: <ManagerDashboardPage />  },
-                  { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
-                  { path: '/manager/sos',        element: <ManagerSosPage />        },
-                  { path: '/manager/payments',   element: <ManagerPaymentsPage />   },
-
-                  // Security/warden QR scanner — hostel + shared (no gate infra for PG)
-                  {
-                    element: <PropertyTypeGuard allow={['hostel', 'shared']} />,
-                    children: [
-                      { path: '/scan', element: <ScanPage /> },
-                    ],
-                  },
-
-                  // Mess menu editor — hostel + PG (mirrors student Mess access)
-                  {
-                    element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
-                    children: [
-                      { path: '/mess/menu-editor', element: <MessMenuEditorPage /> },
-                      { path: '/manager/leave',     element: <ManagerLeaveRequestsPage /> },
-                    ],
-                  },
+                  { path: '/onboarding', element: <OnboardingPage /> },
                 ],
               },
             ],
           },
+          {
+            element: <OnboardingGuard />,
+            children: [
+              {
+                element: <AppShell />,
+                children: [
+                  {
+                    element: <SuspenseOutlet />,
+                    children: [
+                      // Student routes — available to every property type
+                      { path: '/dashboard', element: <DashboardPage /> },
+                      { path: '/complaints', element: <ComplaintsPage /> },
+                      { path: '/complaints/new', element: <NewComplaintPage /> },
+                      { path: '/complaints/:id', element: <ComplaintDetailPage /> },
+                      { path: '/payments', element: <PaymentsPage /> },
+                      { path: '/emergency', element: <EmergencyPage /> },
+                      { path: '/profile', element: <ProfilePage /> },
+                      { path: '/my-room', element: <MyRoomPage /> },
+                      { path: '/community', element: <CommunityPage /> },
+                      { path: '/notifications', element: <NotificationsPage /> },
+
+                      // Gate Pass — hostel only (PG/Shared have no gate infrastructure)
+                      {
+                        element: <PropertyTypeGuard allow={['hostel']} />,
+                        children: [
+                          { path: '/gate-pass', element: <GatePassPage /> },
+                          { path: '/gate-pass/history', element: <PassHistoryPage /> },
+                        ],
+                      },
+
+                      // Mess — hostel + PG (Shared apartments don't have a mess)
+                      {
+                        element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                        children: [
+                          { path: '/mess', element: <MessPage /> },
+                          { path: '/mess/bill', element: <MessBillPage /> },
+                        ],
+                      },
+
+                      // Outpass / Leave Requests — hostel + PG (Shared apartments have no warden to approve)
+                      {
+                        element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                        children: [
+                          { path: '/leave', element: <LeaveRequestsPage /> },
+                          { path: '/leave/new', element: <NewLeaveRequestPage /> },
+                        ],
+                      },
+
+                      // Shared apartment expense splitting
+                      {
+                        element: <PropertyTypeGuard allow={['shared']} />,
+                        children: [
+                          { path: '/expenses', element: <ExpensesPage /> },
+                        ],
+                      },
+
+                      // Manager/warden-only routes
+                      {
+                        element: <StaffOnlyGuard />,
+                        children: [
+                          { path: '/manager', element: <ManagerDashboardPage /> },
+                          { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
+                          { path: '/manager/sos', element: <ManagerSosPage /> },
+                          { path: '/manager/payments', element: <ManagerPaymentsPage /> },
+
+                          // Security/warden QR scanner — hostel + shared (no gate infra for PG)
+                          {
+                            element: <PropertyTypeGuard allow={['hostel', 'shared']} />,
+                            children: [
+                              { path: '/scan', element: <ScanPage /> },
+                            ],
+                          },
+
+                          // Mess menu editor — hostel + PG (mirrors student Mess access)
+                          {
+                            element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
+                            children: [
+                              { path: '/mess/menu-editor', element: <MessMenuEditorPage /> },
+                              { path: '/manager/leave', element: <ManagerLeaveRequestsPage /> },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ]
+          },   // closes OnboardingGuard
         ],
       },
-    ]},   // closes OnboardingGuard
-    ],
-  },
 
-  // Error routes
-  { path: '/unauthorized', element: <div className="flex items-center justify-center min-h-screen"><p className="text-text-secondary">Access denied.</p></div> },
-  { path: '*',             element: <div className="flex items-center justify-center min-h-screen"><p className="text-text-secondary">Page not found.</p></div> },
-  ]}  // closes RootLayout children
+      // Error routes
+      { path: '/unauthorized', element: <div className="flex items-center justify-center min-h-screen"><p className="text-text-secondary">Access denied.</p></div> },
+      { path: '*', element: <div className="flex items-center justify-center min-h-screen"><p className="text-text-secondary">Page not found.</p></div> },
+    ]
+  }  // closes RootLayout children
 ])

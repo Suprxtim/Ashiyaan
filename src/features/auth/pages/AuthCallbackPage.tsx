@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Spinner } from '@/components/ui/Spinner'
 
 // This page is the landing point for:
@@ -14,12 +14,13 @@ import { Spinner } from '@/components/ui/Spinner'
 
 export default function AuthCallbackPage() {
   const [slow, setSlow] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
-    // If nothing has happened after 10 s the link is probably expired or broken.
-    const t = setTimeout(() => setSlow(true), 10_000)
-    return () => clearTimeout(t)
-  }, [])
+    const slowTimer = setTimeout(() => setSlow(true), 10_000)
+    const redirectTimer = setTimeout(() => navigate('/login', { replace: true }), 15_000)
+    return () => { clearTimeout(slowTimer); clearTimeout(redirectTimer) }
+  }, [navigate])
 
   return (
     <div className="min-h-dvh bg-canvas flex items-center justify-center px-5">

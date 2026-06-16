@@ -21,15 +21,6 @@ function GoogleIcon() {
   )
 }
 
-function Divider() {
-  return (
-    <div className="flex items-center gap-3 my-5">
-      <div className="flex-1 h-px bg-border" />
-      <span className="text-[12px] text-text-tertiary font-medium">or</span>
-      <div className="flex-1 h-px bg-border" />
-    </div>
-  )
-}
 
 export default function SignupPage() {
   const [step,         setStep]         = useState<Step>('form')
@@ -40,6 +31,13 @@ export default function SignupPage() {
   const [resendTimer,  setResendTimer]  = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
+
+  function normalizePhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '')
+    if (digits.length === 10) return `+91${digits}`
+    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`
+    return raw.trim()
+  }
 
   function set(field: keyof typeof form) {
     return (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -69,11 +67,13 @@ export default function SignupPage() {
     if (error) setError(error.message)
   }
 
-  async function handleSendOtp(e: React.FormEvent) {
+  async function handleSendOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(''); setLoading(true)
+    const phone = normalizePhone(form.phone)
+    setForm((f) => ({ ...f, phone }))
     const { error } = await supabase.auth.signInWithOtp({
-      phone: form.phone,
+      phone,
       options: {
         shouldCreateUser: true,
         data: { full_name: form.full_name, email: form.email },
@@ -85,7 +85,7 @@ export default function SignupPage() {
     setStep('otp')
   }
 
-  async function handleVerifyOtp(e: React.FormEvent) {
+  async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(''); setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
@@ -131,28 +131,35 @@ export default function SignupPage() {
         <p className="text-[14px] text-text-secondary mt-1">Join Ashiyaan</p>
       </div>
 
+      {/* Google — above card so it's a top-level choice, not buried in the phone form */}
+      {step === 'form' && (
+        <div className="w-full max-w-sm mb-3">
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            className="w-full h-12 flex items-center justify-center gap-3 border border-border rounded-input bg-surface text-[14px] font-semibold text-text-primary hover:bg-surface-raised transition-colors disabled:opacity-60 shadow-card"
+          >
+            {googleLoading ? (
+              <span className="w-4 h-4 border-2 border-text-tertiary border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            Continue with Google
+          </button>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[12px] text-text-tertiary font-medium">or sign up with phone</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-sm bg-surface rounded-card shadow-card p-6">
 
         {step === 'form' ? (
           <>
             <h2 className="text-[18px] font-bold text-text-primary mb-5">Your details</h2>
-
-            {/* Google */}
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading || loading}
-              className="w-full h-12 flex items-center justify-center gap-3 border border-border rounded-input bg-surface-raised text-[14px] font-semibold text-text-primary hover:bg-border transition-colors disabled:opacity-60"
-            >
-              {googleLoading ? (
-                <span className="w-4 h-4 border-2 border-text-tertiary border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <GoogleIcon />
-              )}
-              Continue with Google
-            </button>
-
-            <Divider />
 
             <form onSubmit={handleSendOtp} className="space-y-4">
               <Input
