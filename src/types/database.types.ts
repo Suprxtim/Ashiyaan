@@ -926,39 +926,75 @@ export type Database = {
       }
       profiles: {
         Row: {
+          aadhaar_number: string | null
+          allergies: string | null
           avatar_url: string | null
+          blood_group: string | null
+          college_name: string | null
+          college_year: string | null
+          course: string | null
           created_at: string
+          date_of_birth: string | null
           full_name: string
+          hometown: string | null
           hostel_id: string | null
           id: string
           is_active: boolean
+          medical_conditions: string | null
+          parent_name: string | null
+          parent_phone: string | null
           phone: string | null
+          profile_completed: boolean
           role: Database["public"]["Enums"]["user_role"]
           room_number: string | null
           student_id: string | null
           updated_at: string
         }
         Insert: {
+          aadhaar_number?: string | null
+          allergies?: string | null
           avatar_url?: string | null
+          blood_group?: string | null
+          college_name?: string | null
+          college_year?: string | null
+          course?: string | null
           created_at?: string
+          date_of_birth?: string | null
           full_name: string
+          hometown?: string | null
           hostel_id?: string | null
           id: string
           is_active?: boolean
+          medical_conditions?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
           phone?: string | null
+          profile_completed?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           room_number?: string | null
           student_id?: string | null
           updated_at?: string
         }
         Update: {
+          aadhaar_number?: string | null
+          allergies?: string | null
           avatar_url?: string | null
+          blood_group?: string | null
+          college_name?: string | null
+          college_year?: string | null
+          course?: string | null
           created_at?: string
+          date_of_birth?: string | null
           full_name?: string
+          hometown?: string | null
           hostel_id?: string | null
           id?: string
           is_active?: boolean
+          medical_conditions?: string | null
+          parent_name?: string | null
+          parent_phone?: string | null
           phone?: string | null
+          profile_completed?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           room_number?: string | null
           student_id?: string | null
@@ -1215,6 +1251,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_room: {
+        Args: { p_user_id: string; p_room_number: string }
+        Returns: undefined
+      }
       approve_join_request: {
         Args: { p_user_id: string }
         Returns: undefined
