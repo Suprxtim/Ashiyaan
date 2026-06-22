@@ -212,3 +212,31 @@ export async function updateComplaintWithNote(
     })
   if (updateErr) throw updateErr
 }
+
+export interface PendingMember {
+  id: string
+  full_name: string
+  phone: string | null
+  created_at: string
+}
+
+export async function getPendingMembers(hostelId: string): Promise<PendingMember[]> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, full_name, phone, created_at')
+    .eq('hostel_id', hostelId)
+    .eq('role', 'student')
+    .eq('is_active', false)
+    .order('created_at', { ascending: true })
+  return (data ?? []) as PendingMember[]
+}
+
+export async function approveJoinRequest(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('approve_join_request', { p_user_id: userId })
+  if (error) throw error
+}
+
+export async function rejectJoinRequest(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('reject_join_request', { p_user_id: userId })
+  if (error) throw error
+}

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bell, LogOut, Users, AlertTriangle, IndianRupee,
   UtensilsCrossed, ChevronRight, CheckCircle2, Clock, Flame, ScanLine,
-  Building2, TrendingUp, Timer,
+  Building2, TrendingUp, Timer, UserCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
@@ -11,6 +11,8 @@ import {
   getManagerStats, getMessOccupancy, getLiveGateMovements,
   getOpenComplaints, updateComplaintStatus, getPendingPayments,
   getManagerAnalytics,
+  getPendingMembers, approveJoinRequest, rejectJoinRequest,
+  type PendingMember,
 } from '@/services/manager.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
@@ -89,6 +91,32 @@ export default function ManagerDashboardPage() {
     enabled:  !!hostelId,
   })
 
+  const { data: pendingMembers = [], isLoading: pendingLoading } = useQuery({
+    queryKey:       ['pending-members', hostelId],
+    queryFn:        () => getPendingMembers(hostelId),
+    enabled:        !!hostelId,
+    refetchInterval: 30_000,
+  })
+
+  const { mutate: approveMember, isPending: approving } = useMutation({
+    mutationFn: (userId: string) => approveJoinRequest(userId),
+    onSuccess: () => {
+      toast.success('Member approved')
+      qc.invalidateQueries({ queryKey: ['pending-members', hostelId] })
+      qc.invalidateQueries({ queryKey: ['manager-stats', hostelId] })
+    },
+    onError: () => toast.error('Failed to approve member'),
+  })
+
+  const { mutate: rejectMember, isPending: rejecting } = useMutation({
+    mutationFn: (userId: string) => rejectJoinRequest(userId),
+    onSuccess: () => {
+      toast.success('Request rejected')
+      qc.invalidateQueries({ queryKey: ['pending-members', hostelId] })
+    },
+    onError: () => toast.error('Failed to reject request'),
+  })
+
   const { mutate: resolveComplaint, isPending: resolving } = useMutation({
     mutationFn: (id: string) => updateComplaintStatus(id, 'resolved', 'Resolved by warden'),
     onSuccess: () => {
@@ -138,6 +166,68 @@ export default function ManagerDashboardPage() {
       </div>
 
       <div className="px-4 pt-5 space-y-5">
+
+        {/* ── Pending Members ── hidden when empty */}
+        {(pendingLoading || pendingMembers.length > 0) && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <UserCheck size={18} className="text-warning" />
+              <p className="text-[17px] font-bold text-text-primary">Pending Members</p>
+              {!pendingLoading && (
+                <span className="ml-auto text-[12px] font-semibold bg-warning-light text-warning px-2 py-0.5 rounded-pill">
+                  {pendingMembers.length}
+                </span>
+              )}
+            </div>
+
+            {pendingLoading ? (
+              <div className="space-y-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="bg-surface rounded-card shadow-card p-3 flex gap-3">
+                    <Skeleton circle className="w-10 h-10 flex-shrink-0" />
+                    <div className="flex-1"><Skeleton lines={2} /></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-surface rounded-card shadow-card overflow-hidden">
+                {pendingMembers.map((member: PendingMember, idx: number) => (
+                  <div key={member.id}>
+                    {idx > 0 && <div className="h-px bg-border mx-4" />}
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[12px] font-semibold flex-shrink-0"
+                        style={{ backgroundColor: getAvatarColor(member.full_name) }}
+                      >
+                        {getInitials(member.full_name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-text-primary truncate">{member.full_name}</p>
+                        <p className="text-[12px] text-text-tertiary">Waiting · {timeAgo(member.created_at)}</p>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => rejectMember(member.id)}
+                          disabled={rejecting || approving}
+                          className="px-3 py-1.5 border border-border rounded-btn text-[12px] font-semibold text-danger hover:bg-danger-light transition-colors disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => approveMember(member.id)}
+                          disabled={approving || rejecting}
+                          className="px-3 py-1.5 bg-primary rounded-btn text-[12px] font-semibold text-white active:scale-95 transition-transform disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 gap-3">
