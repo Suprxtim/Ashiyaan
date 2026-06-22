@@ -13,6 +13,7 @@ const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
 const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage'))
 const AuthCallbackPage = lazy(() => import('@/features/auth/pages/AuthCallbackPage'))
 const OnboardingPage = lazy(() => import('@/features/auth/pages/OnboardingPage'))
+const PendingApprovalPage = lazy(() => import('@/features/auth/pages/PendingApprovalPage'))
 
 const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 
@@ -89,6 +90,7 @@ function OnboardingGuard() {
   if (isLoading) return <PageLoader />
   if (session && !user) return <Navigate to="/onboarding" replace />
   if (user && !user.profile.hostel_id) return <Navigate to="/onboarding" replace />
+  if (user && user.profile.hostel_id && !user.profile.is_active) return <Navigate to="/pending-approval" replace />
   return <Outlet />
 }
 
@@ -97,7 +99,8 @@ function OnboardingGuard() {
 function OnboardingPageGuard() {
   const { user, isLoading } = useAuthStore()
   if (isLoading) return <PageLoader />
-  if (user?.profile.hostel_id) return <Navigate to="/dashboard" replace />
+  if (user?.profile.hostel_id && user.profile.is_active) return <Navigate to="/dashboard" replace />
+  if (user?.profile.hostel_id && !user.profile.is_active) return <Navigate to="/pending-approval" replace />
   return <Outlet />
 }
 
@@ -177,6 +180,15 @@ export const router = createBrowserRouter([
                   { path: '/onboarding', element: <OnboardingPage /> },
                 ],
               },
+            ],
+          },
+          // Pending approval — for students who joined but haven't been approved yet.
+          // Must be OUTSIDE OnboardingGuard (which would redirect them back here,
+          // causing a loop) and OUTSIDE AppShell (no bottom nav while waiting).
+          {
+            element: <SuspenseOutlet />,
+            children: [
+              { path: '/pending-approval', element: <PendingApprovalPage /> },
             ],
           },
           {
