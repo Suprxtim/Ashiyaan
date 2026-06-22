@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, Home, ArrowRight, ArrowLeft,
-  MapPin, Phone, Hash, CheckCircle2, Copy, Share2, LogOut,
+  MapPin, Phone, Hash, CheckCircle2, Copy, Share2, LogOut, User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -11,7 +11,7 @@ import type { AuthUser } from '@/types/app.types'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-type Step     = 'choose' | 'join' | 'create-type' | 'create-form' | 'success'
+type Step     = 'name' | 'choose' | 'join' | 'create-type' | 'create-form' | 'success'
 type PropType = 'hostel' | 'pg'
 
 const PROP_TYPES: { type: PropType; title: string; desc: string; color: string; textColor: string; Icon: React.ElementType }[] = [
@@ -31,13 +31,15 @@ const PROP_TYPES: { type: PropType; title: string; desc: string; color: string; 
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
+  const user     = useAuthStore((s) => s.user)
   const setUser  = useAuthStore((s) => s.setUser)
 
-  const [step,     setStep]     = useState<Step>('join')
-  const [propType, setPropType] = useState<PropType>('hostel')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
-  const [code,     setCode]     = useState('')
+  const [step,      setStep]      = useState<Step>('name')
+  const [nameInput, setNameInput] = useState(user?.profile.full_name ?? '')
+  const [propType,  setPropType]  = useState<PropType>('hostel')
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
+  const [code,      setCode]      = useState('')
   const [createdCode, setCreatedCode] = useState('')
   const [createdName, setCreatedName] = useState('')
 
@@ -69,6 +71,22 @@ export default function OnboardingPage() {
     })
     // Only consider it a success when the profile actually has a hostel attached.
     return !!(profile as unknown as { hostel_id?: string | null }).hostel_id
+  }
+
+  // ── Name confirmation ────────────────────────────────────────
+  async function handleNameContinue(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const trimmed = nameInput.trim()
+    if (!trimmed) return
+    setError(''); setLoading(true)
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ full_name: trimmed })
+      .eq('id', user!.id)
+    setLoading(false)
+    if (updateErr) { setError(updateErr.message); return }
+    if (user) setUser({ ...user, profile: { ...user.profile, full_name: trimmed } })
+    setStep('join')
   }
 
   // ── Join flow ────────────────────────────────────────────────
@@ -173,7 +191,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Progress dots */}
-      {step !== 'success' && (
+      {step !== 'success' && step !== 'name' && (
         <div className="flex gap-2 mb-6">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
@@ -189,6 +207,44 @@ export default function OnboardingPage() {
       )}
 
       <div className="w-full max-w-sm">
+
+        {/* ── Name confirmation ── */}
+        {step === 'name' && (
+          <div className="bg-surface rounded-card shadow-card p-6">
+            <h2 className="text-[20px] font-bold text-text-primary mb-1">What's your name?</h2>
+            <p className="text-[13px] text-text-secondary mb-5">
+              This is how your warden will identify you when you request to join.
+            </p>
+            <form onSubmit={handleNameContinue} className="space-y-4">
+              <Input
+                label="Full name"
+                placeholder="e.g. Priya Sharma"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                leftIcon={<User size={16} />}
+                required
+                autoFocus
+              />
+              {error && (
+                <div className="bg-danger-light rounded-inner px-3 py-2">
+                  <p className="text-[13px] text-danger">{error}</p>
+                </div>
+              )}
+              <Button type="submit" fullWidth variant="dark" loading={loading} rightIcon={<ArrowRight size={16} />}>
+                Continue
+              </Button>
+            </form>
+            <div className="mt-6 pt-5 border-t border-border text-center">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-[12px] text-text-secondary flex items-center gap-1.5 mx-auto hover:text-danger transition-colors"
+              >
+                <LogOut size={12} /> Log out
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Join by code (default for students) ── */}
         {step === 'join' && (
