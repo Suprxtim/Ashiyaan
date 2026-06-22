@@ -187,7 +187,7 @@ export default function ProfilePage() {
         )}
 
         {/* ── Outpass / Leave Requests ── */}
-        {(propType === 'hostel' || propType === 'pg') && (
+        {(propType === 'hostel' || propType === 'pg') && user?.profile.role === 'student' && (
           <button
             onClick={() => navigate('/leave')}
             className="w-full bg-surface rounded-card shadow-card px-4 py-3.5 flex items-center justify-between"
