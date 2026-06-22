@@ -1215,6 +1215,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_join_request: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       create_hostel_for_user: {
         Args: {
           p_city?: string
@@ -1236,6 +1240,10 @@ export type Database = {
       }
       is_staff: { Args: never; Returns: boolean }
       join_hostel_by_code: { Args: { p_code: string }; Returns: Json }
+      reject_join_request: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       update_overdue_payments: { Args: never; Returns: undefined }
     }
     Enums: {
