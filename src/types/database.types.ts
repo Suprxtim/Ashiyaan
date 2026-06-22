@@ -1238,6 +1238,10 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_pending_members: {
+        Args: { p_hostel_id: string }
+        Returns: { id: string; full_name: string; phone: string | null; created_at: string }[]
+      }
       is_staff: { Args: never; Returns: boolean }
       join_hostel_by_code: { Args: { p_code: string }; Returns: Json }
       reject_join_request: {

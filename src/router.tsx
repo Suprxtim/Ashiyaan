@@ -76,10 +76,13 @@ function AuthGuard() {
 }
 
 function GuestGuard() {
-  const { session, isLoading } = useAuthStore()
+  const { session, user, isLoading } = useAuthStore()
   // Mirror AuthGuard: only block while session state is unknown.
   if (isLoading && !session) return <PageLoader />
-  if (session) return <Navigate to="/dashboard" replace />
+  if (session) {
+    if (user && user.profile.hostel_id && !user.profile.is_active) return <Navigate to="/pending-approval" replace />
+    return <Navigate to="/dashboard" replace />
+  }
   return <Outlet />
 }
 

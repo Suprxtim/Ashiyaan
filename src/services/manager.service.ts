@@ -221,13 +221,8 @@ export interface PendingMember {
 }
 
 export async function getPendingMembers(hostelId: string): Promise<PendingMember[]> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, full_name, phone, created_at')
-    .eq('hostel_id', hostelId)
-    .eq('role', 'student')
-    .eq('is_active', false)
-    .order('created_at', { ascending: true })
+  const { data, error } = await supabase.rpc('get_pending_members', { p_hostel_id: hostelId })
+  if (error) throw error
   return (data ?? []) as PendingMember[]
 }
 
