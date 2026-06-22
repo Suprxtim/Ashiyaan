@@ -34,7 +34,7 @@ export async function getStudentById(studentId: string): Promise<Profile | null>
     .select('*')
     .eq('id', studentId)
     .eq('role', 'student')
-    .single()
+    .maybeSingle()
   if (error) throw error
   return data as Profile | null
 }
