@@ -92,9 +92,17 @@ export default function OnboardingPage() {
       setError('Joined successfully, but your profile could not load. Tap to reload.')
       return
     }
+
+    const { user: updatedUser } = useAuthStore.getState()
+
+    // Student pending approval — warden hasn't approved yet
+    if (updatedUser && !updatedUser.profile.is_active) {
+      navigate('/pending-approval')
+      return
+    }
+
     const result = data as { name: string; property_type: string }
     toast.success(`Joined ${result.name}!`)
-    // Route based on the refreshed role — a warden rejoining goes to the manager view
     const role = useAuthStore.getState().user?.profile.role
     navigate(role === 'warden' || role === 'manager' ? '/manager' : '/dashboard')
   }
