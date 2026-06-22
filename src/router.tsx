@@ -14,6 +14,7 @@ const SignupPage = lazy(() => import('@/features/auth/pages/SignupPage'))
 const AuthCallbackPage = lazy(() => import('@/features/auth/pages/AuthCallbackPage'))
 const OnboardingPage = lazy(() => import('@/features/auth/pages/OnboardingPage'))
 const PendingApprovalPage = lazy(() => import('@/features/auth/pages/PendingApprovalPage'))
+const ProfileCompletionPage = lazy(() => import('@/features/auth/pages/ProfileCompletionPage'))
 
 const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'))
 
@@ -39,6 +40,8 @@ const LeaveRequestsPage = lazy(() => import('@/features/leave/pages/LeaveRequest
 const NewLeaveRequestPage = lazy(() => import('@/features/leave/pages/NewLeaveRequestPage'))
 
 const ManagerDashboardPage = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
+const ManagerStudentsPage = lazy(() => import('@/features/dashboard/pages/ManagerStudentsPage'))
+const ManagerStudentDetailPage = lazy(() => import('@/features/dashboard/pages/ManagerStudentDetailPage'))
 const ManagerComplaintsPage = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
 const ManagerLeaveRequestsPage = lazy(() => import('@/features/leave/pages/ManagerLeaveRequestsPage'))
 const ManagerSosPage = lazy(() => import('@/features/emergency/pages/ManagerSosPage'))
@@ -94,6 +97,9 @@ function OnboardingGuard() {
   if (session && !user) return <Navigate to="/onboarding" replace />
   if (user && !user.profile.hostel_id) return <Navigate to="/onboarding" replace />
   if (user && user.profile.hostel_id && !user.profile.is_active) return <Navigate to="/pending-approval" replace />
+  if (user && user.profile.role === 'student' && user.profile.is_active && !user.profile.profile_completed) {
+    return <Navigate to="/complete-profile" replace />
+  }
   return <Outlet />
 }
 
@@ -194,6 +200,14 @@ export const router = createBrowserRouter([
               { path: '/pending-approval', element: <PendingApprovalPage /> },
             ],
           },
+          // Profile completion — for newly approved students filling in academic/emergency details.
+          // Must be OUTSIDE OnboardingGuard (which would redirect them back here, causing a loop).
+          {
+            element: <SuspenseOutlet />,
+            children: [
+              { path: '/complete-profile', element: <ProfileCompletionPage /> },
+            ],
+          },
           {
             element: <OnboardingGuard />,
             children: [
@@ -255,6 +269,8 @@ export const router = createBrowserRouter([
                         element: <StaffOnlyGuard />,
                         children: [
                           { path: '/manager', element: <ManagerDashboardPage /> },
+                          { path: '/manager/students', element: <ManagerStudentsPage /> },
+                          { path: '/manager/students/:studentId', element: <ManagerStudentDetailPage /> },
                           { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
                           { path: '/manager/sos', element: <ManagerSosPage /> },
                           { path: '/manager/payments', element: <ManagerPaymentsPage /> },
