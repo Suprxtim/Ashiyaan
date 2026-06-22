@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, Home, ArrowRight, ArrowLeft,
-  MapPin, Phone, Hash, CheckCircle2, Copy, Share2,
+  MapPin, Phone, Hash, CheckCircle2, Copy, Share2, LogOut,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -147,6 +147,12 @@ export default function OnboardingPage() {
   const totalSteps  = step === 'join' ? 1 : 2
   const currentStep = step === 'join' ? 1 : step === 'create-type' ? 1 : step === 'create-form' ? 2 : 2
 
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    useAuthStore.getState().clear()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-dvh bg-canvas flex flex-col items-center justify-center px-5 py-10">
 
@@ -211,15 +217,26 @@ export default function OnboardingPage() {
             </form>
 
             {/* Warden / manager path — secondary, not the default */}
-            <div className="mt-6 pt-5 border-t border-border text-center">
-              <p className="text-[12px] text-text-tertiary mb-2">Are you a warden or manager?</p>
-              <button
-                type="button"
-                onClick={() => { setStep('create-type'); setError('') }}
-                className="text-[13px] text-info font-semibold flex items-center gap-1 mx-auto"
-              >
-                Set up a new hostel / PG <ArrowRight size={13} />
-              </button>
+            <div className="mt-6 pt-5 border-t border-border text-center space-y-5">
+              <div>
+                <p className="text-[12px] text-text-tertiary mb-2">Are you a warden or manager?</p>
+                <button
+                  type="button"
+                  onClick={() => { setStep('create-type'); setError('') }}
+                  className="text-[13px] text-info font-semibold flex items-center gap-1 mx-auto"
+                >
+                  Set up a new hostel / PG <ArrowRight size={13} />
+                </button>
+              </div>
+              <div className="pt-4 border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-[12px] text-text-secondary flex items-center gap-1.5 mx-auto hover:text-danger transition-colors"
+                >
+                  <LogOut size={12} /> Log out
+                </button>
+              </div>
             </div>
           </div>
         )}
