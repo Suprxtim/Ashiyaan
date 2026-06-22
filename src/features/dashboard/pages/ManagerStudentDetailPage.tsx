@@ -51,7 +51,7 @@ export default function ManagerStudentDetailPage() {
   // Initialise room input once student data loads (useEffect avoids setting state during render)
   useEffect(() => {
     if (student) setRoomInput(student.room_number ?? '')
-  }, [student?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [student?.room_number])
 
   const { mutate: doAssignRoom, isPending: assignPending } = useMutation({
     mutationFn: () => assignRoom(studentId!, roomInput),
@@ -64,7 +64,8 @@ export default function ManagerStudentDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
-  if (isLoading || !student) {
+  // 1. Loading state
+  if (isLoading) {
     return (
       <div className="min-h-dvh bg-canvas pb-24">
         <TopBar title="Student Details" showBack />
@@ -77,6 +78,19 @@ export default function ManagerStudentDetailPage() {
             </div>
           </div>
           <Skeleton className="h-48 rounded-card" />
+        </div>
+      </div>
+    )
+  }
+
+  // 2. Not found state
+  if (!student) {
+    return (
+      <div className="min-h-dvh bg-canvas">
+        <TopBar title="Student Details" showBack />
+        <div className="pt-14 flex flex-col items-center justify-center p-8 text-center gap-3">
+          <p className="text-text-primary font-medium">Student not found</p>
+          <p className="text-text-secondary text-sm">This student may have left the hostel.</p>
         </div>
       </div>
     )
