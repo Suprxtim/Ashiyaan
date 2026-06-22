@@ -15,6 +15,7 @@ import {
   type PendingMember,
 } from '@/services/manager.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
+import { getStudentCount } from '@/services/student.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
@@ -96,6 +97,12 @@ export default function ManagerDashboardPage() {
     queryFn:        () => getPendingMembers(hostelId),
     enabled:        !!hostelId,
     refetchInterval: 30_000,
+  })
+
+  const { data: studentCount = 0 } = useQuery({
+    queryKey: ['student-count', hostelId],
+    queryFn:  () => getStudentCount(hostelId),
+    enabled:  !!hostelId,
   })
 
   const { mutate: approveMember, isPending: approving } = useMutation({
@@ -228,6 +235,23 @@ export default function ManagerDashboardPage() {
             )}
           </div>
         )}
+
+        {/* ── Students ── */}
+        <button
+          onClick={() => navigate('/manager/students')}
+          className="w-full bg-surface rounded-card shadow-card px-4 py-3.5 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center text-primary flex-shrink-0">
+              <Users size={16} />
+            </span>
+            <div className="text-left">
+              <p className="text-[14px] font-semibold text-text-primary">Students</p>
+              <p className="text-[12px] text-text-tertiary">{studentCount} active resident{studentCount !== 1 ? 's' : ''}</p>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
+        </button>
 
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 gap-3">
