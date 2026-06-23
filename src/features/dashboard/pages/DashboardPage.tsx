@@ -438,35 +438,42 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {activity.map((pass) => (
-                  <div
-                    key={pass.id}
-                    className="bg-surface rounded-card px-4 py-3 flex items-center gap-3 shadow-card"
-                  >
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      pass.pass_type === 'exit' ? 'bg-danger-light' : 'bg-success-light'
-                    }`}>
-                      {pass.pass_type === 'exit'
-                        ? <LogOut size={16} className="text-danger" />
-                        : <LogIn  size={16} className="text-success" />}
+                {activity.map((trip) => {
+                  const isOut = trip.status === 'out' || trip.status === 'overdue'
+                  return (
+                    <div
+                      key={trip.id}
+                      className="bg-surface rounded-card px-4 py-3 flex items-center gap-3 shadow-card"
+                    >
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        isOut ? 'bg-danger-light' : 'bg-success-light'
+                      }`}>
+                        {isOut
+                          ? <LogOut size={16} className="text-danger" />
+                          : <LogIn  size={16} className="text-success" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-text-primary truncate">
+                          {trip.destination}
+                        </p>
+                        <p className="text-[12px] text-text-tertiary">
+                          {formatTime(trip.exit_at)} · {timeAgo(trip.exit_at)}
+                        </p>
+                      </div>
+                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-pill flex-shrink-0 ${
+                        trip.status === 'returned'  ? 'bg-success-light text-success'       :
+                        trip.status === 'overdue'   ? 'bg-danger-light text-danger'         :
+                        trip.status === 'out'       ? 'bg-warning-light text-warning'       :
+                                                      'bg-surface-raised text-text-tertiary'
+                      }`}>
+                        {trip.status === 'returned' ? 'Returned' :
+                         trip.status === 'overdue'  ? 'Overdue'  :
+                         trip.status === 'out'      ? 'Outside'  :
+                         trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-text-primary capitalize">
-                        Campus {pass.pass_type === 'exit' ? 'Exit' : 'Entry'}
-                      </p>
-                      <p className="text-[12px] text-text-tertiary">
-                        {formatTime(pass.generated_at)} · {timeAgo(pass.generated_at)}
-                      </p>
-                    </div>
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-pill flex-shrink-0 ${
-                      pass.status === 'used'   ? 'bg-surface-raised text-text-tertiary' :
-                      pass.status === 'active' ? 'bg-success-light text-success'        :
-                                                  'bg-surface-raised text-text-tertiary'
-                    }`}>
-                      {pass.status.charAt(0).toUpperCase() + pass.status.slice(1)}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

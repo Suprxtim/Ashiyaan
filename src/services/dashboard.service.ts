@@ -52,15 +52,24 @@ export async function fetchAnnouncements(hostelId: string) {
   return data ?? []
 }
 
-export async function fetchRecentActivity(userId: string) {
+export type RecentTripActivity = {
+  id: string
+  destination: string
+  exit_at: string
+  status: string
+  profiles: { full_name: string; avatar_url: string | null } | null
+}
+
+export async function fetchRecentActivity(userId: string): Promise<RecentTripActivity[]> {
   const { data } = await supabase
-    .from('gate_passes')
-    .select('id, pass_type, status, generated_at, scanned_at')
+    .from('gate_trips')
+    .select('id, destination, exit_at, status, profiles(full_name, avatar_url)')
     .eq('user_id', userId)
-    .order('generated_at', { ascending: false })
+    .not('exit_at', 'is', null)
+    .order('exit_at', { ascending: false })
     .limit(5)
 
-  return data ?? []
+  return (data ?? []) as RecentTripActivity[]
 }
 
 export async function fetchRecentComplaints(userId: string) {

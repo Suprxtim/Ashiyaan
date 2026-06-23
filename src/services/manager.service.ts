@@ -7,7 +7,7 @@ export type ComplaintWithProfile = Database['public']['Tables']['complaints']['R
 }
 
 export async function getManagerStats(hostelId: string) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
 
   const [checkedOut, activeComplaints, todayPasses, pendingDues] = await Promise.all([
     // Students currently outside: trips with status 'out' or 'overdue'
@@ -49,7 +49,7 @@ export async function getManagerStats(hostelId: string) {
 }
 
 export async function getMessOccupancy(hostelId: string) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
 
   // Count students who are opted IN for dinner tonight
   const { count: totalStudents } = await supabase

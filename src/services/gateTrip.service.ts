@@ -151,7 +151,7 @@ export async function getTripsCurrentlyOut(hostelId: string): Promise<GateTripWi
 }
 
 export async function getTodaysTripLog(hostelId: string): Promise<GateTripWithProfile[]> {
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
   const { data } = await supabase
     .from('gate_trips')
     .select('*, profiles(full_name, room_number, avatar_url)')
