@@ -14,6 +14,7 @@ import {
   getPendingMembers, approveJoinRequest, rejectJoinRequest,
   type PendingMember,
 } from '@/services/manager.service'
+import { getTripsCurrentlyOut } from '@/services/gateTrip.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { getStudentCount } from '@/services/student.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
@@ -103,6 +104,13 @@ export default function ManagerDashboardPage() {
     queryKey: ['student-count', hostelId],
     queryFn:  () => getStudentCount(hostelId),
     enabled:  !!hostelId,
+  })
+
+  const { data: currentlyOut = [] } = useQuery({
+    queryKey: ['trips-currently-out', hostelId],
+    queryFn:  () => getTripsCurrentlyOut(hostelId),
+    enabled:  !!hostelId && !isPg,
+    refetchInterval: 30_000,
   })
 
   const { mutate: approveMember, isPending: approving } = useMutation({
@@ -252,6 +260,27 @@ export default function ManagerDashboardPage() {
           </div>
           <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
         </button>
+
+        {/* ── Gate Register ── hostel/shared only */}
+        {!isPg && (
+          <button
+            onClick={() => navigate('/manager/gate')}
+            className="w-full bg-surface rounded-card shadow-card px-4 py-3.5 flex items-center gap-3 active:scale-[0.98] transition-transform"
+          >
+            <div className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
+              <ScanLine size={16} className="text-primary" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-[14px] font-semibold text-text-primary">Gate Register</p>
+              <p className="text-[12px] text-text-secondary">
+                {currentlyOut.length > 0
+                  ? `${currentlyOut.length} student${currentlyOut.length !== 1 ? 's' : ''} currently outside`
+                  : 'All students are in'}
+              </p>
+            </div>
+            <ChevronRight size={18} className="text-text-tertiary flex-shrink-0" />
+          </button>
+        )}
 
         {/* ── Stats Row ── */}
         <div className="grid grid-cols-2 gap-3">

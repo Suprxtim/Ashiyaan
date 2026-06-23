@@ -42,6 +42,7 @@ const NewLeaveRequestPage = lazy(() => import('@/features/leave/pages/NewLeaveRe
 const ManagerDashboardPage = lazy(() => import('@/features/dashboard/pages/ManagerDashboardPage'))
 const ManagerStudentsPage = lazy(() => import('@/features/dashboard/pages/ManagerStudentsPage'))
 const ManagerStudentDetailPage = lazy(() => import('@/features/dashboard/pages/ManagerStudentDetailPage'))
+const GateDashboardPage = lazy(() => import('@/features/gate-pass/pages/GateDashboardPage'))
 const ManagerComplaintsPage = lazy(() => import('@/features/complaints/pages/ManagerComplaintsPage'))
 const ManagerLeaveRequestsPage = lazy(() => import('@/features/leave/pages/ManagerLeaveRequestsPage'))
 const ManagerSosPage = lazy(() => import('@/features/emergency/pages/ManagerSosPage'))
@@ -272,6 +273,7 @@ export const router = createBrowserRouter([
                           { path: '/manager/students', element: <ManagerStudentsPage /> },
                           { path: '/manager/students/:studentId', element: <ManagerStudentDetailPage /> },
                           { path: '/manager/complaints', element: <ManagerComplaintsPage /> },
+                          { path: '/manager/gate', element: <GateDashboardPage /> },
                           { path: '/manager/sos', element: <ManagerSosPage /> },
                           { path: '/manager/payments', element: <ManagerPaymentsPage /> },
 
