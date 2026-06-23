@@ -1,18 +1,58 @@
 import { useState } from 'react'
-import { Bell, LogIn, LogOut, Clock, DoorOpen, ChevronRight, UserPlus, Phone, Trash2, CalendarDays } from 'lucide-react'
+import { Bell, LogIn, LogOut, Clock, DoorOpen, ChevronRight, UserPlus,
+         Phone, Trash2, CalendarDays, MapPin, Loader2, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
-import { useGatePass } from '../hooks/useGatePass'
+import { useGateTrip } from '../hooks/useGateTrip'
 import { getInitials, getAvatarColor, formatTime, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { getVisitors, createVisitor, cancelVisitor } from '@/services/visitors.service'
+import type { GateTrip } from '@/types/app.types'
+import type { AuthUser } from '@/types/app.types'
 
 type Tab = 'my' | 'visitor'
+
+// ── Return time preset helpers ────────────────────────────────
+
+function getPresetTime(preset: '2h' | 'evening' | 'tonight' | 'tomorrow'): string {
+  const d = new Date()
+  if (preset === '2h') {
+    d.setHours(d.getHours() + 2)
+  } else if (preset === 'evening') {
+    d.setHours(20, 0, 0, 0)
+    if (d < new Date()) d.setDate(d.getDate() + 1)
+  } else if (preset === 'tonight') {
+    d.setHours(22, 0, 0, 0)
+    if (d < new Date()) d.setDate(d.getDate() + 1)
+  } else {
+    d.setDate(d.getDate() + 1)
+    d.setHours(10, 0, 0, 0)
+  }
+  // Return as local datetime-local string (YYYY-MM-DDTHH:mm)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  pending:   'Waiting at Gate',
+  out:       'Currently Outside',
+  overdue:   'Overdue',
+  returned:  'Returned',
+  cancelled: 'Cancelled',
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  pending:   'bg-warning-light text-warning',
+  out:       'bg-primary-light text-primary',
+  overdue:   'bg-danger-light text-danger',
+  returned:  'bg-success-light text-success',
+  cancelled: 'bg-surface-raised text-text-tertiary',
+}
 
 const VISITOR_STATUS_STYLE: Record<string, string> = {
   pending:  'bg-warning-light text-warning',
@@ -31,10 +71,10 @@ const VISITOR_STATUS_LABEL: Record<string, string> = {
 }
 
 export default function GatePassPage() {
-  const navigate   = useNavigate()
+  const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('my')
-  const user       = useAuthStore((s) => s.user)
-  const { activePass, passLoading, history, historyLoading, secondsLeft, generating, generate } = useGatePass()
+  const user = useAuthStore((s) => s.user)
+  const { activeTrip, tripLoading, trips, tripsLoading, submitting, cancelling, submitTrip, cancel, qrToken } = useGateTrip()
 
   const initials    = user ? getInitials(user.profile.full_name) : '?'
   const avatarColor = user ? getAvatarColor(user.profile.full_name) : '#1A3D3D'
@@ -43,23 +83,14 @@ export default function GatePassPage() {
     ? `${hostelName} · Room ${user.profile.room_number}`
     : user?.hostel?.name ?? 'Ashiyaan'
 
-  const mins = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
-  const secs = String(secondsLeft % 60).padStart(2, '0')
-  const isExpiringSoon = secondsLeft > 0 && secondsLeft <= 60
-  const progressPct = activePass
-    ? (secondsLeft / 300) * 100
-    : 0
-
   return (
     <div className="min-h-dvh bg-canvas pb-24">
 
       {/* ── TopBar ── */}
       <div className="bg-surface px-4 pt-12 pb-4 flex items-center justify-between sticky top-0 z-40 shadow-card">
         <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0"
-            style={{ backgroundColor: avatarColor }}
-          >
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-[13px] font-semibold flex-shrink-0"
+            style={{ backgroundColor: avatarColor }}>
             {initials}
           </div>
           <div>
@@ -67,11 +98,7 @@ export default function GatePassPage() {
             <p className="text-[12px] text-text-tertiary leading-tight">{user?.profile.full_name}</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/notifications')}
-          className="p-2 rounded-full hover:bg-surface-raised"
-          aria-label="Notifications"
-        >
+        <button onClick={() => navigate('/notifications')} className="p-2 rounded-full hover:bg-surface-raised">
           <Bell size={22} className="text-text-secondary" />
         </button>
       </div>
@@ -81,211 +108,293 @@ export default function GatePassPage() {
         {/* ── Tabs ── */}
         <div className="flex bg-surface-raised rounded-inner p-1">
           {(['my', 'visitor'] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
+            <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-2 text-[14px] font-semibold rounded-sm transition-colors ${
-                tab === t
-                  ? 'bg-surface text-primary shadow-card'
-                  : 'text-text-tertiary'
-              }`}
-            >
-              {t === 'my' ? 'My Passes' : 'Visitor Passes'}
+                tab === t ? 'bg-surface text-primary shadow-card' : 'text-text-tertiary'
+              }`}>
+              {t === 'my' ? 'My Gate Pass' : 'Visitor Passes'}
             </button>
           ))}
         </div>
 
         {tab === 'my' ? (
-          <>
-            {/* ── Pass Card ── */}
-            {passLoading ? (
-              <div className="bg-surface rounded-card shadow-card p-5 space-y-4">
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-48 w-full rounded-inner" />
-                <Skeleton className="h-10 w-full rounded-btn" />
-              </div>
-            ) : (
-              <div className="bg-surface rounded-card shadow-card overflow-hidden">
-
-                {/* Card header */}
-                <div className="px-5 pt-5 pb-3 flex items-start justify-between">
-                  <div>
-                    <p className="text-[17px] font-bold text-text-primary">Digital Gate Pass</p>
-                    <p className="text-[13px] text-primary mt-0.5">Valid for single exit/entry</p>
-                  </div>
-                  {activePass && (
-                    <span className="bg-success-light text-success text-[11px] font-bold px-3 py-1 rounded-pill uppercase">
-                      Active
-                    </span>
-                  )}
-                </div>
-
-                {/* QR area — phone mockup on teal bg */}
-                <div className="mx-5 mb-4 bg-primary rounded-inner p-6 flex items-center justify-center">
-                  {activePass ? (
-                    <div className="bg-white rounded-[16px] p-3 shadow-raised relative">
-                      {/* Phone notch */}
-                      <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-1.5 bg-[#E8E2DA] rounded-full" />
-                      <div className="mt-2">
-                        <QRCodeSVG
-                          value={activePass.qr_token}
-                          size={180}
-                          level="M"
-                          fgColor="#1A3D3D"
-                          bgColor="#FFFFFF"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white/10 rounded-inner flex items-center justify-center w-[180px] h-[180px]">
-                      <div className="text-center">
-                        <DoorOpen size={40} className="text-white/50 mx-auto mb-2" />
-                        <p className="text-white/70 text-[13px]">No active pass</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Countdown */}
-                {activePass && (
-                  <div className="mx-5 mb-4">
-                    <div className="h-1.5 bg-surface-raised rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-1000 ${isExpiringSoon ? 'bg-danger' : 'bg-primary'}`}
-                        style={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-center mt-1.5">
-                      <span className="flex items-center gap-1 text-[12px] text-text-tertiary">
-                        <Clock size={12} />
-                        Expires in
-                      </span>
-                      <span className={`text-[14px] font-bold tabular-nums ${isExpiringSoon ? 'text-danger' : 'text-text-primary'}`}>
-                        {mins}:{secs}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Student + Room chips */}
-                {user && (
-                  <div className="mx-5 mb-4 grid grid-cols-2 gap-3">
-                    <div className="bg-surface-raised rounded-inner px-3 py-2">
-                      <p className="text-[11px] text-text-tertiary mb-0.5">Student</p>
-                      <p className="text-[13px] font-semibold text-text-primary truncate">{user.profile.full_name}</p>
-                    </div>
-                    <div className="bg-surface-raised rounded-inner px-3 py-2">
-                      <p className="text-[11px] text-text-tertiary mb-0.5">Room</p>
-                      <p className="text-[13px] font-semibold text-text-primary">{user.profile.room_number ?? '—'}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Generated time */}
-                {activePass && (
-                  <div className="mx-5 mb-4 flex items-center gap-1.5 text-[12px] text-text-tertiary">
-                    <Clock size={13} />
-                    Generated: {formatDate(activePass.generated_at, { day: '2-digit', month: 'short' })}, {formatTime(activePass.generated_at)}
-                  </div>
-                )}
-
-                {/* Generate buttons */}
-                <div className="px-5 pb-5 space-y-2">
-                  {activePass ? (
-                    <Button
-                      variant="dark"
-                      fullWidth
-                      loading={generating}
-                      onClick={() => generate('exit')}
-                      leftIcon={<LogOut size={16} />}
-                    >
-                      Generate Exit Pass
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="dark"
-                        fullWidth
-                        loading={generating}
-                        onClick={() => generate('entry')}
-                        leftIcon={<LogIn size={16} />}
-                      >
-                        Generate Entry Pass
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        fullWidth
-                        loading={generating}
-                        onClick={() => generate('exit')}
-                        leftIcon={<LogOut size={16} />}
-                      >
-                        Generate Exit Pass
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ── Recent History ── */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[17px] font-bold text-text-primary">Recent History</p>
-                <button
-                  onClick={() => navigate('/gate-pass/history')}
-                  className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
-                >
-                  View All <ChevronRight size={14} />
-                </button>
-              </div>
-
-              {historyLoading ? (
-                <div className="space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="bg-surface rounded-card p-3 flex gap-3 shadow-card">
-                      <Skeleton circle className="w-9 h-9" />
-                      <div className="flex-1"><Skeleton lines={2} /></div>
-                    </div>
-                  ))}
-                </div>
-              ) : history.length === 0 ? (
-                <p className="text-[13px] text-text-tertiary italic">No passes generated yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {history.slice(0, 5).map((pass) => (
-                    <div key={pass.id} className="bg-surface rounded-card px-4 py-3 flex items-center gap-3 shadow-card">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        pass.pass_type === 'exit' ? 'bg-danger-light' : 'bg-success-light'
-                      }`}>
-                        {pass.pass_type === 'exit'
-                          ? <LogOut size={16} className="text-danger" />
-                          : <LogIn  size={16} className="text-success" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold text-text-primary capitalize">
-                          Campus {pass.pass_type === 'exit' ? 'Exit' : 'Entry'}
-                        </p>
-                        <p className="text-[12px] text-text-tertiary">
-                          {formatDate(pass.generated_at, { day: '2-digit', month: 'short' })}, {formatTime(pass.generated_at)}
-                        </p>
-                      </div>
-                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-pill flex-shrink-0 ${
-                        pass.status === 'used'    ? 'bg-surface-raised text-text-tertiary' :
-                        pass.status === 'active'  ? 'bg-success-light text-success'        :
-                                                    'bg-surface-raised text-text-tertiary'
-                      }`}>
-                        {pass.status.charAt(0).toUpperCase() + pass.status.slice(1)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
+          <MyGatePassTab
+            user={user}
+            qrToken={qrToken}
+            activeTrip={activeTrip ?? null}
+            tripLoading={tripLoading}
+            trips={trips}
+            tripsLoading={tripsLoading}
+            submitting={submitting}
+            cancelling={cancelling}
+            submitTrip={submitTrip}
+            cancelTrip={cancel}
+            navigate={navigate}
+          />
         ) : (
           <VisitorTab userId={user?.id ?? ''} hostelId={user?.profile.hostel_id ?? ''} />
         )}
+
       </div>
+    </div>
+  )
+}
+
+// ── MyGatePassTab ─────────────────────────────────────────────
+
+interface MyGatePassTabProps {
+  user: AuthUser | null
+  qrToken: string
+  activeTrip: GateTrip | null
+  tripLoading: boolean
+  trips: GateTrip[]
+  tripsLoading: boolean
+  submitting: boolean
+  cancelling: boolean
+  submitTrip: (params: { destination: string; purpose?: string; expectedReturnAt: string }) => void
+  cancelTrip: (tripId: string) => void
+  navigate: (path: string) => void
+}
+
+function MyGatePassTab({
+  user,
+  qrToken,
+  activeTrip,
+  tripLoading,
+  trips,
+  tripsLoading,
+  submitting,
+  cancelling,
+  submitTrip,
+  cancelTrip,
+  navigate,
+}: MyGatePassTabProps) {
+  const [destination, setDestination]       = useState('')
+  const [purpose, setPurpose]               = useState('')
+  const [expectedReturn, setExpectedReturn] = useState('')
+  const [showCustomTime, setShowCustomTime] = useState(false)
+
+  const presets = [
+    { label: '2 hrs',   value: '2h'      },
+    { label: 'Evening', value: 'evening' },
+    { label: 'Tonight', value: 'tonight' },
+    { label: 'Tomorrow',value: 'tomorrow'},
+  ] as const
+
+  function handlePreset(p: typeof presets[number]['value']) {
+    setExpectedReturn(getPresetTime(p))
+    setShowCustomTime(false)
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!destination.trim()) { toast.error('Destination is required'); return }
+    if (!expectedReturn) { toast.error('Select a return time'); return }
+    submitTrip({
+      destination: destination.trim(),
+      purpose: purpose.trim() || undefined,
+      expectedReturnAt: new Date(expectedReturn).toISOString(),
+    })
+    setDestination(''); setPurpose(''); setExpectedReturn('')
+  }
+
+  const isActive = activeTrip && (activeTrip.status === 'pending' || activeTrip.status === 'out' || activeTrip.status === 'overdue')
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── Static QR card ── */}
+      <div className="bg-surface rounded-card shadow-card overflow-hidden">
+        <div className="px-5 pt-5 pb-3">
+          <p className="text-[17px] font-bold text-text-primary">Digital Gate Pass</p>
+          <p className="text-[13px] text-text-tertiary mt-0.5">Show this QR at the gate</p>
+        </div>
+        {/* QR on teal background */}
+        <div className="mx-5 mb-4 bg-primary rounded-inner p-6 flex items-center justify-center">
+          {qrToken ? (
+            <div className="bg-white rounded-[16px] p-3 shadow-raised">
+              <QRCodeSVG value={qrToken} size={180} level="M" fgColor="#1A3D3D" bgColor="#FFFFFF" />
+            </div>
+          ) : (
+            <div className="bg-white/10 rounded-inner flex items-center justify-center w-[180px] h-[180px]">
+              <DoorOpen size={40} className="text-white/50" />
+            </div>
+          )}
+        </div>
+        {/* Student + room chips */}
+        {user && (
+          <div className="mx-5 mb-5 grid grid-cols-2 gap-3">
+            <div className="bg-surface-raised rounded-inner px-3 py-2">
+              <p className="text-[11px] text-text-tertiary mb-0.5">Student</p>
+              <p className="text-[13px] font-semibold text-text-primary truncate">{user.profile.full_name}</p>
+            </div>
+            <div className="bg-surface-raised rounded-inner px-3 py-2">
+              <p className="text-[11px] text-text-tertiary mb-0.5">Room</p>
+              <p className="text-[13px] font-semibold text-text-primary">{user.profile.room_number ?? '—'}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Active trip status card ── */}
+      {tripLoading ? (
+        <div className="bg-surface rounded-card shadow-card p-5 space-y-3">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+      ) : isActive && activeTrip ? (
+        <div className="bg-surface rounded-card shadow-card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[17px] font-bold text-text-primary">Active Trip</p>
+            <span className={`text-[11px] font-bold px-3 py-1 rounded-pill ${STATUS_COLOR[activeTrip.status] ?? 'bg-surface-raised text-text-tertiary'}`}>
+              {STATUS_LABEL[activeTrip.status] ?? activeTrip.status}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[14px] text-text-primary">
+            <MapPin size={15} className="text-text-tertiary flex-shrink-0" />
+            <span className="font-semibold">{activeTrip.destination}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[13px] text-text-secondary">
+            <Clock size={14} className="text-text-tertiary flex-shrink-0" />
+            <span>
+              Expected return: {formatDate(activeTrip.expected_return_at, { day: '2-digit', month: 'short' })},{' '}
+              {formatTime(activeTrip.expected_return_at)}
+            </span>
+          </div>
+          {activeTrip.status === 'pending' && (
+            <>
+              <p className="text-[13px] text-text-tertiary">
+                Waiting for guard to scan your QR at the gate
+              </p>
+              <Button
+                variant="secondary"
+                fullWidth
+                loading={cancelling}
+                onClick={() => cancelTrip(activeTrip.id)}
+                leftIcon={<X size={15} />}
+              >
+                Cancel Trip
+              </Button>
+            </>
+          )}
+          {(activeTrip.status === 'out' || activeTrip.status === 'overdue') && activeTrip.exit_at && (
+            <div className="flex items-center gap-2 text-[13px] text-text-secondary">
+              <LogOut size={14} className="text-text-tertiary flex-shrink-0" />
+              <span>Exited at: {formatTime(activeTrip.exit_at)}</span>
+            </div>
+          )}
+          {activeTrip.status === 'overdue' && (
+            <p className="text-[12px] font-semibold text-danger">
+              You are overdue — please return immediately
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {/* ── Create trip form ── */}
+      {!isActive && (
+        <div className="bg-surface rounded-card shadow-card p-5 space-y-4">
+          <p className="text-[17px] font-bold text-text-primary">Plan Your Outing</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Destination"
+              placeholder="e.g. City Mall, Home, College"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              leftIcon={<MapPin size={14} />}
+              required
+            />
+            <Input
+              label="Purpose (optional)"
+              placeholder="e.g. Shopping, Family visit"
+              value={purpose}
+              onChange={(e) => setPurpose(e.target.value)}
+            />
+            <div>
+              <p className="text-[13px] font-medium text-text-secondary mb-2">Expected return</p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {presets.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => handlePreset(p.value)}
+                    className={`px-3 py-1.5 rounded-pill text-[13px] font-medium border transition-colors ${
+                      expectedReturn === getPresetTime(p.value)
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-surface border-border text-text-secondary'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setShowCustomTime((v) => !v)}
+                  className={`px-3 py-1.5 rounded-pill text-[13px] font-medium border transition-colors ${
+                    showCustomTime ? 'bg-primary text-white border-primary' : 'bg-surface border-border text-text-secondary'
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+              {showCustomTime && (
+                <input
+                  type="datetime-local"
+                  value={expectedReturn}
+                  onChange={(e) => setExpectedReturn(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="w-full border border-border rounded-inner px-3 py-2 text-[14px] text-text-primary bg-surface"
+                />
+              )}
+              {expectedReturn && !showCustomTime && (
+                <p className="text-[12px] text-text-tertiary">
+                  Return by: {formatDate(new Date(expectedReturn), { day: '2-digit', month: 'short' })},{' '}
+                  {formatTime(new Date(expectedReturn))}
+                </p>
+              )}
+            </div>
+            <Button type="submit" variant="dark" fullWidth loading={submitting}
+              leftIcon={<LogOut size={16} />}>
+              Submit Trip Request
+            </Button>
+          </form>
+        </div>
+      )}
+
+      {/* ── Recent trips ── */}
+      {!tripsLoading && trips.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[17px] font-bold text-text-primary">Recent Trips</p>
+            <button onClick={() => navigate('/gate-pass/history')}
+              className="text-[13px] text-primary font-semibold flex items-center gap-0.5">
+              View All <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {trips.filter(t => t.status !== 'pending').slice(0, 3).map((trip) => (
+              <div key={trip.id} className="bg-surface rounded-card px-4 py-3 flex items-center gap-3 shadow-card">
+                <div className="w-9 h-9 rounded-full bg-primary-light flex items-center justify-center flex-shrink-0">
+                  <MapPin size={16} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-text-primary truncate">{trip.destination}</p>
+                  <p className="text-[12px] text-text-tertiary">
+                    {formatDate(trip.created_at, { day: '2-digit', month: 'short' })}
+                    {trip.exit_at ? ` · Out: ${formatTime(trip.exit_at)}` : ''}
+                    {trip.return_at ? ` · In: ${formatTime(trip.return_at)}` : ''}
+                  </p>
+                </div>
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-pill flex-shrink-0 ${STATUS_COLOR[trip.status] ?? 'bg-surface-raised text-text-tertiary'}`}>
+                  {STATUS_LABEL[trip.status] ?? trip.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
