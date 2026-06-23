@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Bell, LogIn, LogOut, Clock, DoorOpen, ChevronRight, UserPlus,
-         Phone, Trash2, CalendarDays, MapPin, Loader2, X } from 'lucide-react'
+import { Bell, LogOut, Clock, DoorOpen, ChevronRight, UserPlus,
+         Phone, Trash2, CalendarDays, MapPin, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { getVisitors, createVisitor, cancelVisitor } from '@/services/visitors.service'
-import type { GateTrip } from '@/types/app.types'
-import type { AuthUser } from '@/types/app.types'
+import type { GateTrip, AuthUser } from '@/types/app.types'
 
 type Tab = 'my' | 'visitor'
 
@@ -173,6 +172,7 @@ function MyGatePassTab({
   const [purpose, setPurpose]               = useState('')
   const [expectedReturn, setExpectedReturn] = useState('')
   const [showCustomTime, setShowCustomTime] = useState(false)
+  const [selectedPreset, setSelectedPreset] = useState<'2h' | 'evening' | 'tonight' | 'tomorrow' | null>(null)
 
   const presets = [
     { label: '2 hrs',   value: '2h'      },
@@ -183,6 +183,7 @@ function MyGatePassTab({
 
   function handlePreset(p: typeof presets[number]['value']) {
     setExpectedReturn(getPresetTime(p))
+    setSelectedPreset(p)
     setShowCustomTime(false)
   }
 
@@ -195,7 +196,7 @@ function MyGatePassTab({
       purpose: purpose.trim() || undefined,
       expectedReturnAt: new Date(expectedReturn).toISOString(),
     })
-    setDestination(''); setPurpose(''); setExpectedReturn('')
+    setDestination(''); setPurpose(''); setExpectedReturn(''); setSelectedPreset(null)
   }
 
   const isActive = activeTrip && (activeTrip.status === 'pending' || activeTrip.status === 'out' || activeTrip.status === 'overdue')
@@ -320,7 +321,7 @@ function MyGatePassTab({
                     type="button"
                     onClick={() => handlePreset(p.value)}
                     className={`px-3 py-1.5 rounded-pill text-[13px] font-medium border transition-colors ${
-                      expectedReturn === getPresetTime(p.value)
+                      selectedPreset === p.value
                         ? 'bg-primary text-white border-primary'
                         : 'bg-surface border-border text-text-secondary'
                     }`}
@@ -342,7 +343,7 @@ function MyGatePassTab({
                 <input
                   type="datetime-local"
                   value={expectedReturn}
-                  onChange={(e) => setExpectedReturn(e.target.value)}
+                  onChange={(e) => { setExpectedReturn(e.target.value); setSelectedPreset(null) }}
                   min={new Date().toISOString().slice(0, 16)}
                   className="w-full border border-border rounded-inner px-3 py-2 text-[14px] text-text-primary bg-surface"
                 />
