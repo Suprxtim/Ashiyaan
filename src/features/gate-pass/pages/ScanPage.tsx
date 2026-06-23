@@ -365,7 +365,7 @@ export default function ScanPage() {
 
       // ── curfew_warn ──
       case 'curfew_warn': {
-        const { student, trip, approvedLeave, scannedToken } = phase
+        const { student, trip, scannedToken } = phase
         const curfew = hostel?.curfew_time ? formatCurfew(hostel.curfew_time) : ''
         return (
           <div className="w-full max-w-sm bg-warning-light rounded-card p-5 space-y-4 border border-warning/40">
@@ -389,7 +389,7 @@ export default function ScanPage() {
               fullWidth
               variant="danger"
               leftIcon={<LogOut size={16} />}
-              onClick={() => { void approvedLeave; doApproveExit(scannedToken) }}
+              onClick={() => doApproveExit(scannedToken)}
             >
               Confirm Override &amp; Approve Exit
             </Button>
