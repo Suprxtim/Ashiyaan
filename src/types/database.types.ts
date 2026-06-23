@@ -389,12 +389,103 @@ export type Database = {
           },
         ]
       }
+      gate_trips: {
+        Row: {
+          created_at: string
+          destination: string
+          exit_approved_by: string | null
+          exit_at: string | null
+          expected_return_at: string
+          guard_notes: string | null
+          hostel_id: string
+          id: string
+          linked_leave_id: string | null
+          purpose: string | null
+          return_at: string | null
+          return_logged_by: string | null
+          status: Database["public"]["Enums"]["trip_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          destination: string
+          exit_approved_by?: string | null
+          exit_at?: string | null
+          expected_return_at: string
+          guard_notes?: string | null
+          hostel_id: string
+          id?: string
+          linked_leave_id?: string | null
+          purpose?: string | null
+          return_at?: string | null
+          return_logged_by?: string | null
+          status?: Database["public"]["Enums"]["trip_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          destination?: string
+          exit_approved_by?: string | null
+          exit_at?: string | null
+          expected_return_at?: string
+          guard_notes?: string | null
+          hostel_id?: string
+          id?: string
+          linked_leave_id?: string | null
+          purpose?: string | null
+          return_at?: string | null
+          return_logged_by?: string | null
+          status?: Database["public"]["Enums"]["trip_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gate_trips_exit_approved_by_fkey"
+            columns: ["exit_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_trips_hostel_id_fkey"
+            columns: ["hostel_id"]
+            isOneToOne: false
+            referencedRelation: "hostels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_trips_linked_leave_id_fkey"
+            columns: ["linked_leave_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_trips_return_logged_by_fkey"
+            columns: ["return_logged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gate_trips_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hostels: {
         Row: {
           address: string | null
           city: string | null
           contact_phone: string | null
           created_at: string
+          curfew_time: string | null
           hostel_code: string
           id: string
           name: string
@@ -408,6 +499,7 @@ export type Database = {
           city?: string | null
           contact_phone?: string | null
           created_at?: string
+          curfew_time?: string | null
           hostel_code?: string
           id?: string
           name: string
@@ -421,6 +513,7 @@ export type Database = {
           city?: string | null
           contact_phone?: string | null
           created_at?: string
+          curfew_time?: string | null
           hostel_code?: string
           id?: string
           name?: string
@@ -945,6 +1038,7 @@ export type Database = {
           parent_phone: string | null
           phone: string | null
           profile_completed: boolean
+          qr_identity_token: string
           role: Database["public"]["Enums"]["user_role"]
           room_number: string | null
           student_id: string | null
@@ -970,6 +1064,7 @@ export type Database = {
           parent_phone?: string | null
           phone?: string | null
           profile_completed?: boolean
+          qr_identity_token?: string
           role?: Database["public"]["Enums"]["user_role"]
           room_number?: string | null
           student_id?: string | null
@@ -995,6 +1090,7 @@ export type Database = {
           parent_phone?: string | null
           phone?: string | null
           profile_completed?: boolean
+          qr_identity_token?: string
           role?: Database["public"]["Enums"]["user_role"]
           room_number?: string | null
           student_id?: string | null
@@ -1282,13 +1378,54 @@ export type Database = {
         Args: { p_hostel_id: string }
         Returns: { id: string; full_name: string; phone: string | null; created_at: string }[]
       }
+      guard_create_trip: {
+        Args: {
+          p_user_id: string
+          p_destination: string
+          p_expected_return_at: string
+          p_purpose?: string
+        }
+        Returns: string
+      }
       is_staff: { Args: never; Returns: boolean }
       join_hostel_by_code: { Args: { p_code: string }; Returns: Json }
+      mark_overdue_trips: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       reject_join_request: {
         Args: { p_user_id: string }
         Returns: undefined
       }
       update_overdue_payments: { Args: never; Returns: undefined }
+      use_trip_exit: {
+        Args: { p_qr_token: string; p_guard_notes?: string }
+        Returns: {
+          trip_id: string
+          student_name: string
+          room_number: string | null
+          destination: string
+          purpose: string | null
+          expected_return_at: string
+          exit_at: string
+          linked_leave_id: string | null
+          duration_minutes: number | null
+        }
+      }
+      use_trip_return: {
+        Args: { p_qr_token: string; p_guard_notes?: string }
+        Returns: {
+          trip_id: string
+          student_name: string
+          room_number: string | null
+          destination: string
+          purpose: string | null
+          expected_return_at: string
+          exit_at: string
+          linked_leave_id: string | null
+          duration_minutes: number
+        }
+      }
     }
     Enums: {
       announcement_category:
@@ -1333,6 +1470,7 @@ export type Database = {
       property_type: "hostel" | "pg" | "shared"
       room_type: "single" | "double" | "triple" | "dormitory"
       sos_status: "active" | "responded" | "resolved"
+      trip_status: "cancelled" | "out" | "overdue" | "pending" | "returned"
       user_role: "student" | "warden" | "manager" | "security" | "parent"
       visitor_status: "pending" | "approved" | "arrived" | "left" | "expired"
     }
@@ -1508,6 +1646,7 @@ export const Constants = {
       property_type: ["hostel", "pg", "shared"],
       room_type: ["single", "double", "triple", "dormitory"],
       sos_status: ["active", "responded", "resolved"],
+      trip_status: ["cancelled", "out", "overdue", "pending", "returned"],
       user_role: ["student", "warden", "manager", "security", "parent"],
       visitor_status: ["pending", "approved", "arrived", "left", "expired"],
     },
