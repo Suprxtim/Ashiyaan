@@ -13,6 +13,7 @@ import {
   getManagerAnalytics,
   getPendingMembers, approveJoinRequest, rejectJoinRequest,
   type PendingMember,
+  type GateTripMovement,
 } from '@/services/manager.service'
 import { getTripsCurrentlyOut } from '@/services/gateTrip.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
@@ -541,14 +542,14 @@ export default function ManagerDashboardPage() {
               </div>
             ) : (
               <div className="bg-surface rounded-card shadow-card overflow-hidden">
-                {gateMovements.map((pass, idx) => {
-                  const profile = (pass as unknown as { profiles: { full_name: string; avatar_url: string | null; room_number: string | null } }).profiles
-                  const name    = profile?.full_name ?? 'Unknown'
-                  const room    = profile?.room_number
+                {gateMovements.map((pass: GateTripMovement, idx: number) => {
+                  const profile  = pass.profiles
+                  const name     = profile?.full_name ?? 'Unknown'
+                  const room     = profile?.room_number
                   const initials = getInitials(name)
                   const color    = getAvatarColor(name)
-                  const isExit   = pass.pass_type === 'exit'
-                  const time     = pass.scanned_at ?? pass.generated_at
+                  const isOut    = pass.status === 'out' || pass.status === 'overdue'
+                  const time     = pass.exit_at
 
                   return (
                     <div key={pass.id}>
@@ -563,14 +564,14 @@ export default function ManagerDashboardPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-[14px] font-semibold text-text-primary">{name}</p>
                           <p className="text-[12px] text-text-tertiary">
-                            {room ? `Room ${room}` : 'No room assigned'}
+                            {room ? `Room ${room}` : 'No room assigned'}{pass.destination ? ` · ${pass.destination}` : ''}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${isExit ? 'bg-danger' : 'bg-success'}`} />
-                            <span className={`text-[12px] font-bold ${isExit ? 'text-danger' : 'text-success'}`}>
-                              {isExit ? 'Out' : 'In'}
+                            <span className={`w-2 h-2 rounded-full ${isOut ? 'bg-danger' : 'bg-success'}`} />
+                            <span className={`text-[12px] font-bold ${isOut ? 'text-danger' : 'text-success'}`}>
+                              {isOut ? 'Out' : 'In'}
                             </span>
                           </div>
                           <span className="text-[11px] text-text-tertiary">{formatTime(time)}</span>

@@ -10,14 +10,12 @@ export async function getManagerStats(hostelId: string) {
   const today = new Date().toISOString().split('T')[0]
 
   const [checkedOut, activeComplaints, todayPasses, pendingDues] = await Promise.all([
-    // Students currently outside (exit passes used today, no entry since)
+    // Students currently outside: trips with status 'out' or 'overdue'
     supabase
-      .from('gate_passes')
+      .from('gate_trips')
       .select('id', { count: 'exact', head: true })
       .eq('hostel_id', hostelId)
-      .eq('pass_type', 'exit')
-      .eq('status', 'used')
-      .gte('scanned_at', today),
+      .in('status', ['out', 'overdue']),
 
     // Open complaints
     supabase
@@ -26,12 +24,13 @@ export async function getManagerStats(hostelId: string) {
       .eq('hostel_id', hostelId)
       .in('status', ['submitted', 'in_progress']),
 
-    // Total gate movements today
+    // Total gate movements today: trips where exit_at is today
     supabase
-      .from('gate_passes')
+      .from('gate_trips')
       .select('id', { count: 'exact', head: true })
       .eq('hostel_id', hostelId)
-      .gte('generated_at', today),
+      .gte('exit_at', today)
+      .not('exit_at', 'is', null),
 
     // Payments awaiting collection
     supabase
@@ -73,16 +72,26 @@ export async function getMessOccupancy(hostelId: string) {
   return { expected, total }
 }
 
-export async function getLiveGateMovements(hostelId: string, limit = 10) {
+export type GateTripMovement = {
+  id: string
+  destination: string
+  purpose: string | null
+  exit_at: string | null
+  return_at: string | null
+  status: string
+  profiles: { full_name: string; avatar_url: string | null; room_number: string | null } | null
+}
+
+export async function getLiveGateMovements(hostelId: string, limit = 10): Promise<GateTripMovement[]> {
   const { data } = await supabase
-    .from('gate_passes')
-    .select('*, profiles(full_name, avatar_url, room_number)')
+    .from('gate_trips')
+    .select('id, destination, purpose, exit_at, return_at, status, profiles(full_name, avatar_url, room_number)')
     .eq('hostel_id', hostelId)
-    .eq('status', 'used')
-    .order('scanned_at', { ascending: false })
+    .not('exit_at', 'is', null)
+    .order('exit_at', { ascending: false })
     .limit(limit)
 
-  return data ?? []
+  return (data ?? []) as GateTripMovement[]
 }
 
 export async function getOpenComplaints(hostelId: string, limit = 5) {
