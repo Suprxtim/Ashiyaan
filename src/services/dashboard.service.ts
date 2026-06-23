@@ -63,7 +63,7 @@ export type RecentTripActivity = {
 export async function fetchRecentActivity(userId: string): Promise<RecentTripActivity[]> {
   const { data } = await supabase
     .from('gate_trips')
-    .select('id, destination, exit_at, status, profiles(full_name, avatar_url)')
+    .select('id, destination, exit_at, status, profiles!user_id(full_name, avatar_url)')
     .eq('user_id', userId)
     .not('exit_at', 'is', null)
     .order('exit_at', { ascending: false })

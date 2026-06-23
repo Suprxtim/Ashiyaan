@@ -104,7 +104,7 @@ export async function useTripExit(
 ): Promise<TripScanResult> {
   const { data, error } = await supabase.rpc('use_trip_exit', {
     p_qr_token:    qrToken,
-    p_guard_notes: guardNotes ?? null,
+    p_guard_notes: guardNotes,
   })
   if (error) throw error
   return data as TripScanResult
@@ -116,7 +116,7 @@ export async function useTripReturn(
 ): Promise<TripScanResult> {
   const { data, error } = await supabase.rpc('use_trip_return', {
     p_qr_token:    qrToken,
-    p_guard_notes: guardNotes ?? null,
+    p_guard_notes: guardNotes,
   })
   if (error) throw error
   return data as TripScanResult
@@ -132,7 +132,7 @@ export async function guardCreateTrip(params: {
     p_user_id:            params.userId,
     p_destination:        params.destination,
     p_expected_return_at: params.expectedReturnAt,
-    p_purpose:            params.purpose ?? null,
+    p_purpose:            params.purpose,
   })
   if (error) throw error
   return data as string
@@ -143,7 +143,7 @@ export async function guardCreateTrip(params: {
 export async function getTripsCurrentlyOut(hostelId: string): Promise<GateTripWithProfile[]> {
   const { data } = await supabase
     .from('gate_trips')
-    .select('*, profiles(full_name, room_number, avatar_url)')
+    .select('*, profiles!user_id(full_name, room_number, avatar_url)')
     .eq('hostel_id', hostelId)
     .in('status', ['out', 'overdue'])
     .order('exit_at', { ascending: false })
@@ -154,7 +154,7 @@ export async function getTodaysTripLog(hostelId: string): Promise<GateTripWithPr
   const today = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
   const { data } = await supabase
     .from('gate_trips')
-    .select('*, profiles(full_name, room_number, avatar_url)')
+    .select('*, profiles!user_id(full_name, room_number, avatar_url)')
     .eq('hostel_id', hostelId)
     .gte('exit_at', today)
     .not('exit_at', 'is', null)

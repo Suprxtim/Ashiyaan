@@ -574,7 +574,7 @@ export default function ManagerDashboardPage() {
                               {isOut ? 'Out' : 'In'}
                             </span>
                           </div>
-                          <span className="text-[11px] text-text-tertiary">{formatTime(time)}</span>
+                          <span className="text-[11px] text-text-tertiary">{time ? formatTime(time) : '—'}</span>
                         </div>
                       </div>
                     </div>

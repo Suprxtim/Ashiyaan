@@ -85,7 +85,7 @@ export type GateTripMovement = {
 export async function getLiveGateMovements(hostelId: string, limit = 10): Promise<GateTripMovement[]> {
   const { data } = await supabase
     .from('gate_trips')
-    .select('id, destination, purpose, exit_at, return_at, status, profiles(full_name, avatar_url, room_number)')
+    .select('id, destination, purpose, exit_at, return_at, status, profiles!user_id(full_name, avatar_url, room_number)')
     .eq('hostel_id', hostelId)
     .not('exit_at', 'is', null)
     .order('exit_at', { ascending: false })
