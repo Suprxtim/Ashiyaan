@@ -30,6 +30,10 @@ type ComplaintPriority = Database['public']['Enums']['complaint_priority']
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'] as const
 
+// Persists across navigations for the lifetime of the session.
+// Toast only fires when a trip ID we haven't seen before goes overdue.
+const _notifiedOverdueIds = new Set<string>()
+
 const PRIORITY_ICON: Record<ComplaintPriority, React.ElementType> = {
   urgent: Flame,
   high:   AlertTriangle,
@@ -130,12 +134,15 @@ export default function ManagerDashboardPage() {
   const overdueTrips = useMemo(() => currentlyOut.filter(isOverdueTrip), [currentlyOut])
 
   useEffect(() => {
-    if (overdueTrips.length === 0) { toast.dismiss('overdue-alert'); return }
+    if (overdueTrips.length === 0) return
+    const newlyOverdue = overdueTrips.filter((t) => !_notifiedOverdueIds.has(t.id))
+    if (newlyOverdue.length === 0) return
+    newlyOverdue.forEach((t) => _notifiedOverdueIds.add(t.id))
     toast.warning(
       `${overdueTrips.length} student${overdueTrips.length !== 1 ? 's' : ''} overdue`,
       { description: 'Expected return time has passed', duration: Infinity, id: 'overdue-alert' },
     )
-  }, [overdueTrips.length])
+  }, [overdueTrips])
 
   const { mutate: markReturned } = useMutation({
     mutationFn: (tripId: string) => markTripReturnedByManager(tripId),
