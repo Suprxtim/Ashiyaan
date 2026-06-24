@@ -3,14 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell, Wrench, IndianRupee, Siren,
-  Megaphone, CheckCheck,
+  Megaphone, CheckCheck, AlertTriangle, Phone,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth.store'
+import { getTripsCurrentlyOut, markTripReturnedByManager, isOverdueTrip } from '@/services/gateTrip.service'
 import { TopBar } from '@/components/layout/TopBar'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { timeAgo } from '@/lib/utils'
+import { timeAgo, getInitials, getAvatarColor } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 const NOTIF_ICON: Record<string, { Icon: React.ElementType; bg: string; color: string }> = {
@@ -48,11 +50,40 @@ async function markAllRead(userId: string) {
   await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false)
 }
 
+function formatOverdue(expectedAt: string | null): string {
+  if (!expectedAt) return 'Past due'
+  const mins = Math.floor((Date.now() - new Date(expectedAt).getTime()) / 60000)
+  if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''}`
+  const hrs = Math.floor(mins / 60)
+  const rem = mins % 60
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`
+}
+
 export default function NotificationsPage() {
-  const navigate = useNavigate()
-  const qc       = useQueryClient()
-  const user     = useAuthStore((s) => s.user)
-  const userId   = user?.id ?? ''
+  const navigate  = useNavigate()
+  const qc        = useQueryClient()
+  const user      = useAuthStore((s) => s.user)
+  const userId    = user?.id ?? ''
+  const hostelId  = user?.profile.hostel_id ?? ''
+  const isManager = user?.profile.role === 'warden' || user?.profile.role === 'manager'
+  const isPg      = user?.hostel?.property_type === 'pg'
+
+  const { data: overdueTrips = [] } = useQuery({
+    queryKey: ['trips-currently-out', hostelId],
+    queryFn:  () => getTripsCurrentlyOut(hostelId),
+    enabled:  !!hostelId && isManager && !isPg,
+    refetchInterval: 30_000,
+    select: (trips) => trips.filter(isOverdueTrip),
+  })
+
+  const { mutate: markReturned } = useMutation({
+    mutationFn: (tripId: string) => markTripReturnedByManager(tripId),
+    onSuccess: () => {
+      toast.success('Marked as returned')
+      qc.invalidateQueries({ queryKey: ['trips-currently-out', hostelId] })
+    },
+    onError: () => toast.error('Failed to update'),
+  })
 
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ['notifications', userId],
@@ -120,6 +151,63 @@ export default function NotificationsPage() {
       />
 
       <div className="pt-14 px-4 space-y-3">
+
+        {/* ── Overdue Students (managers only) ── */}
+        {isManager && !isPg && overdueTrips.length > 0 && (
+          <div className="bg-danger-light border border-danger/20 rounded-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={15} className="text-danger flex-shrink-0" />
+              <p className="text-[13px] font-bold text-danger">
+                {overdueTrips.length} student{overdueTrips.length !== 1 ? 's' : ''} haven't returned
+              </p>
+            </div>
+            {overdueTrips.map((trip) => {
+              const name        = trip.profiles?.full_name ?? 'Unknown'
+              const phone       = trip.profiles?.phone
+              const parentPhone = trip.profiles?.parent_phone
+              const callNumber  = phone ?? parentPhone
+              const room        = trip.profiles?.room_number
+              return (
+                <div key={trip.id} className="flex items-center gap-3 bg-surface rounded-inner px-3 py-2.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0"
+                    style={{ backgroundColor: getAvatarColor(name) }}
+                  >
+                    {getInitials(name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-text-primary truncate">{name}</p>
+                    <p className="text-[11px] text-danger font-medium">
+                      {formatOverdue(trip.expected_return_at)} overdue
+                      {room ? ` · Room ${room}` : ''}
+                    </p>
+                    {!phone && parentPhone && (
+                      <p className="text-[10px] text-text-tertiary mt-0.5">Calling parent</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {callNumber ? (
+                      <a
+                        href={`tel:${callNumber}`}
+                        className="flex items-center gap-1 bg-primary text-white text-[12px] font-semibold px-2.5 py-1.5 rounded-btn active:scale-95 transition-transform"
+                      >
+                        <Phone size={12} /> Call
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-text-tertiary">No number</span>
+                    )}
+                    <button
+                      onClick={() => markReturned(trip.id)}
+                      className="text-[12px] font-semibold text-text-secondary border border-border rounded-btn px-2.5 py-1.5 active:scale-95 transition-transform"
+                    >
+                      Returned
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {unreadCount > 0 && (
           <p className="text-[12px] font-semibold text-text-tertiary">

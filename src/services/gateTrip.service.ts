@@ -14,7 +14,13 @@ export type TripScanResult = {
 }
 
 export type GateTripWithProfile = GateTrip & {
-  profiles: { full_name: string; room_number: string | null; avatar_url: string | null; phone: string | null } | null
+  profiles: {
+    full_name: string
+    room_number: string | null
+    avatar_url: string | null
+    phone: string | null
+    parent_phone: string | null
+  } | null
 }
 
 export function isOverdueTrip(trip: GateTripWithProfile): boolean {
@@ -149,7 +155,7 @@ export async function guardCreateTrip(params: {
 export async function getTripsCurrentlyOut(hostelId: string): Promise<GateTripWithProfile[]> {
   const { data } = await supabase
     .from('gate_trips')
-    .select('*, profiles!user_id(full_name, room_number, avatar_url, phone)')
+    .select('*, profiles!user_id(full_name, room_number, avatar_url, phone, parent_phone)')
     .eq('hostel_id', hostelId)
     .in('status', ['out', 'overdue'])
     .order('exit_at', { ascending: false })

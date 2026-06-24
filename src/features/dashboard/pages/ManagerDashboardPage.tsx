@@ -1,10 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bell, LogOut, Users, AlertTriangle, IndianRupee,
   UtensilsCrossed, ChevronRight, CheckCircle2, Clock, Flame, ScanLine,
-  Building2, TrendingUp, Timer, UserCheck, Phone,
+  Building2, TrendingUp, Timer, UserCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
@@ -17,7 +17,7 @@ import {
   type GateTripMovement,
 } from '@/services/manager.service'
 import { getMessSettings, getTodaysMealCounts, getCurrentMeal } from '@/services/mess.service'
-import { getTripsCurrentlyOut, markTripReturnedByManager, isOverdueTrip } from '@/services/gateTrip.service'
+import { getTripsCurrentlyOut, isOverdueTrip } from '@/services/gateTrip.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { getStudentCount } from '@/services/student.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
@@ -30,9 +30,6 @@ type ComplaintPriority = Database['public']['Enums']['complaint_priority']
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'] as const
 
-// Persists across navigations for the lifetime of the session.
-// Toast only fires when a trip ID we haven't seen before goes overdue.
-const _notifiedOverdueIds = new Set<string>()
 
 const PRIORITY_ICON: Record<ComplaintPriority, React.ElementType> = {
   urgent: Flame,
@@ -131,28 +128,7 @@ export default function ManagerDashboardPage() {
     refetchInterval: 30_000,
   })
 
-  const overdueTrips = useMemo(() => currentlyOut.filter(isOverdueTrip), [currentlyOut])
-
-  useEffect(() => {
-    if (overdueTrips.length === 0) return
-    const newlyOverdue = overdueTrips.filter((t) => !_notifiedOverdueIds.has(t.id))
-    if (newlyOverdue.length === 0) return
-    newlyOverdue.forEach((t) => _notifiedOverdueIds.add(t.id))
-    toast.warning(
-      `${overdueTrips.length} student${overdueTrips.length !== 1 ? 's' : ''} overdue`,
-      { description: 'Expected return time has passed', duration: Infinity, id: 'overdue-alert' },
-    )
-  }, [overdueTrips])
-
-  const { mutate: markReturned } = useMutation({
-    mutationFn: (tripId: string) => markTripReturnedByManager(tripId),
-    onSuccess: () => {
-      toast.success('Marked as returned')
-      qc.invalidateQueries({ queryKey: ['trips-currently-out', hostelId] })
-      qc.invalidateQueries({ queryKey: ['manager-stats', hostelId] })
-    },
-    onError: () => toast.error('Failed to update'),
-  })
+  const overdueCount = useMemo(() => currentlyOut.filter(isOverdueTrip).length, [currentlyOut])
 
   const { mutate: approveMember, isPending: approving } = useMutation({
     mutationFn: (userId: string) => approveJoinRequest(userId),
@@ -213,66 +189,18 @@ export default function ManagerDashboardPage() {
           )}
           <button
             onClick={() => navigate('/notifications')}
-            className="p-2 rounded-full hover:bg-surface-raised"
+            className="relative p-2 rounded-full hover:bg-surface-raised"
             aria-label="Notifications"
           >
             <Bell size={22} className="text-text-secondary" />
+            {overdueCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-danger rounded-full border-2 border-surface" />
+            )}
           </button>
         </div>
       </div>
 
       <div className="px-4 pt-5 space-y-5">
-
-        {/* ── Overdue Students ── */}
-        {!isPg && overdueTrips.length > 0 && (
-          <div className="bg-danger-light border border-danger/20 rounded-card p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={15} className="text-danger flex-shrink-0" />
-              <p className="text-[13px] font-bold text-danger">
-                {overdueTrips.length} student{overdueTrips.length !== 1 ? 's' : ''} haven't returned
-              </p>
-            </div>
-            {overdueTrips.map((trip) => {
-              const name  = trip.profiles?.full_name ?? 'Unknown'
-              const phone = trip.profiles?.phone
-              const room  = trip.profiles?.room_number
-              return (
-                <div key={trip.id} className="flex items-center gap-3 bg-surface rounded-inner px-3 py-2.5">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0"
-                    style={{ backgroundColor: getAvatarColor(name) }}
-                  >
-                    {getInitials(name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-text-primary truncate">{name}</p>
-                    <p className="text-[11px] text-danger font-medium">
-                      {formatOverdue(trip.expected_return_at)} overdue
-                      {room ? ` · Room ${room}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        className="flex items-center gap-1 bg-primary text-white text-[12px] font-semibold px-2.5 py-1.5 rounded-btn active:scale-95 transition-transform"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Phone size={12} /> Call
-                      </a>
-                    )}
-                    <button
-                      onClick={() => markReturned(trip.id)}
-                      className="text-[12px] font-semibold text-text-secondary border border-border rounded-btn px-2.5 py-1.5 active:scale-95 transition-transform"
-                    >
-                      Returned
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
 
         {/* ── Pending Members ── hidden when empty */}
         {(pendingLoading || pendingMembers.length > 0) && (
@@ -823,15 +751,6 @@ function AnalyticsStat({
 }
 
 // ── Stat Card ─────────────────────────────────────────────────
-
-function formatOverdue(expectedAt: string | null): string {
-  if (!expectedAt) return 'Past due'
-  const mins = Math.floor((Date.now() - new Date(expectedAt).getTime()) / 60000)
-  if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''}`
-  const hrs = Math.floor(mins / 60)
-  const rem = mins % 60
-  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`
-}
 
 function StatCard({
   label, value, sub, icon, valueColor = 'text-text-primary', loading,
