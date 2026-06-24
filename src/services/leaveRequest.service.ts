@@ -56,6 +56,18 @@ export async function cancelLeaveRequest(id: string, userId: string) {
   if (error) throw error
 }
 
+export async function fetchRecentLeave(userId: string): Promise<LeaveRequest | null> {
+  const { data } = await supabase
+    .from('leave_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .neq('status', 'cancelled')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data
+}
+
 export async function getAllHostelLeaveRequests(hostelId: string, status?: LeaveStatus): Promise<LeaveRequestWithProfile[]> {
   let q = supabase
     .from('leave_requests')

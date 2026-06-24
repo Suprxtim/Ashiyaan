@@ -39,6 +39,7 @@ export function useLeaveRequests() {
     onSuccess: () => {
       toast.success('Leave request cancelled')
       qc.invalidateQueries({ queryKey: ['leave-requests', userId] })
+      qc.invalidateQueries({ queryKey: ['leave-recent'] })
     },
     onError: () => toast.error('Failed to cancel request'),
   })
