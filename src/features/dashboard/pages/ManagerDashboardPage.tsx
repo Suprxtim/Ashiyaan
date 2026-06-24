@@ -8,13 +8,14 @@ import {
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
 import {
-  getManagerStats, getMessOccupancy, getLiveGateMovements,
+  getManagerStats, getLiveGateMovements,
   getOpenComplaints, updateComplaintStatus, getPendingPayments,
   getManagerAnalytics,
   getPendingMembers, approveJoinRequest, rejectJoinRequest,
   type PendingMember,
   type GateTripMovement,
 } from '@/services/manager.service'
+import { getMessSettings, getTodaysMealCounts, getCurrentMeal } from '@/services/mess.service'
 import { getTripsCurrentlyOut } from '@/services/gateTrip.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { getStudentCount } from '@/services/student.service'
@@ -25,6 +26,8 @@ import { StarRating } from '@/components/ui/StarRating'
 import type { Database } from '@/types/database.types'
 
 type ComplaintPriority = Database['public']['Enums']['complaint_priority']
+
+const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'] as const
 
 const PRIORITY_ICON: Record<ComplaintPriority, React.ElementType> = {
   urgent: Flame,
@@ -50,11 +53,20 @@ export default function ManagerDashboardPage() {
     refetchInterval: 30_000,
   })
 
-  const { data: mess, isLoading: messLoading } = useQuery({
-    queryKey: ['mess-occupancy', hostelId],
-    queryFn:  () => getMessOccupancy(hostelId),
+  const today = new Date().toLocaleDateString('en-CA')
+
+  const { data: mealCounts, isLoading: mealCountsLoading } = useQuery({
+    queryKey: ['meal-counts', hostelId, today],
+    queryFn:  () => getTodaysMealCounts(hostelId, today),
     enabled:  !!hostelId,
     refetchInterval: 60_000,
+  })
+
+  const { data: messSettings = [], isLoading: settingsLoading } = useQuery({
+    queryKey: ['mess-settings', hostelId],
+    queryFn:  () => getMessSettings(hostelId),
+    enabled:  !!hostelId,
+    staleTime: Infinity,
   })
 
   const { data: feedbackSummary = [], isLoading: feedbackSummaryLoading } = useQuery({
@@ -330,6 +342,7 @@ export default function ManagerDashboardPage() {
           {[
             { label: 'Post Notice',    path: '/community',        icon: '📢' },
             { label: 'Edit Menu',      path: '/mess/menu-editor', icon: '🍽️' },
+            { label: 'Mess Settings',  path: '/mess/settings',    icon: '⚙️' },
             { label: 'Payments',       path: '/manager/payments', icon: '💳' },
             { label: 'Leave Requests', path: '/manager/leave',    icon: '🗓️' },
           ].map(({ label, path, icon }) => (
@@ -371,26 +384,52 @@ export default function ManagerDashboardPage() {
           </div>
         </div>
 
-        {/* ── Mess Occupancy ── */}
+        {/* ── Mess Today ── */}
         <div className="bg-surface rounded-card shadow-card p-4">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
-              Mess Occupancy
+              Mess Today
             </p>
             <UtensilsCrossed size={18} className="text-text-tertiary" />
           </div>
-          {messLoading ? (
-            <Skeleton className="h-9 w-20 mt-1" />
-          ) : (
-            <>
-              <p className="text-[32px] font-bold text-text-primary leading-tight">
-                {mess?.expected ?? 0}
-              </p>
-              <p className="text-[13px] text-text-secondary">
-                Expected for dinner tonight{mess?.total ? ` · ${mess.total} total` : ''}
-              </p>
-            </>
-          )}
+          {mealCountsLoading || settingsLoading ? (
+            <div className="space-y-2.5">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-5 w-full" />)}
+            </div>
+          ) : (() => {
+            const current = getCurrentMeal(messSettings, new Date())
+            return (
+              <div className="space-y-2.5">
+                {MEAL_ORDER.map((mealKey) => {
+                  const s = messSettings.find((s) => s.meal_type === mealKey)
+                  if (s && !s.enabled) return null
+                  const counts   = mealCounts?.[mealKey]
+                  const isActive = current?.meal.meal_type === mealKey && current.status === 'active'
+                  const isNext   = current?.meal.meal_type === mealKey && current.status === 'next'
+                  const highlight = isActive || isNext
+                  return (
+                    <div key={mealKey} className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        isActive ? 'bg-success' :
+                        isNext   ? 'bg-warning' :
+                                   'bg-transparent'
+                      }`} />
+                      <p className={`text-[13px] flex-1 capitalize ${
+                        highlight ? 'font-bold text-text-primary' : 'text-text-secondary'
+                      }`}>
+                        {mealKey}
+                      </p>
+                      <p className={`text-[13px] tabular-nums ${
+                        highlight ? 'font-bold text-text-primary' : 'text-text-secondary'
+                      }`}>
+                        {counts ? `${counts.expected} / ${counts.total}` : '—'}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── Mess Ratings ── */}
