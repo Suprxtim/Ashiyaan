@@ -50,6 +50,7 @@ const ExpensesPage = lazy(() => import('@/features/expenses/pages/ExpensesPage')
 const ScanPage = lazy(() => import('@/features/gate-pass/pages/ScanPage'))
 const CommunityPage = lazy(() => import('@/features/community/pages/CommunityPage'))
 const MessMenuEditorPage = lazy(() => import('@/features/mess/pages/MessMenuEditorPage'))
+const MessSettingsPage = lazy(() => import('@/features/mess/pages/MessSettingsPage'))
 const ManagerPaymentsPage = lazy(() => import('@/features/payments/pages/ManagerPaymentsPage'))
 const NotificationsPage = lazy(() => import('@/features/notifications/pages/NotificationsPage'))
 
@@ -290,6 +291,7 @@ export const router = createBrowserRouter([
                             element: <PropertyTypeGuard allow={['hostel', 'pg']} />,
                             children: [
                               { path: '/mess/menu-editor', element: <MessMenuEditorPage /> },
+                              { path: '/mess/settings',    element: <MessSettingsPage /> },
                               { path: '/manager/leave', element: <ManagerLeaveRequestsPage /> },
                             ],
                           },
