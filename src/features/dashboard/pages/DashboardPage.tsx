@@ -290,7 +290,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Leave / Outpass ── */}
-        {!isShared && (
+        {!isShared && !isManager && (
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
