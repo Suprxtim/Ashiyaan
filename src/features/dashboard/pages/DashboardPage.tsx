@@ -1,12 +1,14 @@
 import { useNavigate, Navigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   Bell, QrCode, UtensilsCrossed, CreditCard, Receipt,
   LogIn, LogOut, ChevronRight, Utensils, AlertTriangle,
-  IndianRupee, Wrench,
+  IndianRupee, Wrench, Calendar,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { fetchDashboardStats, fetchAnnouncements, fetchRecentActivity, fetchRecentComplaints } from '@/services/dashboard.service'
+import { fetchRecentLeave, cancelLeaveRequest, type LeaveRequest } from '@/services/leaveRequest.service'
 import { getExpenses, getBalances } from '@/services/expenses.service'
 import { formatCurrency, formatTime, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -76,6 +78,24 @@ export default function DashboardPage() {
     queryKey: ['recent-complaints', userId],
     queryFn:  () => fetchRecentComplaints(userId),
     enabled:  !!userId && isPg && !isManager,
+  })
+
+  const qc = useQueryClient()
+
+  const { data: recentLeave, isLoading: leaveLoading } = useQuery({
+    queryKey: ['leave-recent', userId],
+    queryFn:  () => fetchRecentLeave(userId),
+    enabled:  !!userId && !isShared && !isManager,
+  })
+
+  const { mutate: cancelLeave, isPending: leaveCancelling } = useMutation({
+    mutationFn: (id: string) => cancelLeaveRequest(id, userId),
+    onSuccess: () => {
+      toast.success('Leave request cancelled')
+      qc.invalidateQueries({ queryKey: ['leave-recent', userId] })
+      qc.invalidateQueries({ queryKey: ['leave-requests', userId] })
+    },
+    onError: () => toast.error('Failed to cancel'),
   })
 
   // Managers/wardens go to their own dashboard — placed AFTER all hooks
@@ -268,6 +288,30 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* ── Leave / Outpass ── */}
+        {!isShared && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
+                Leave / Outpass
+              </p>
+              <button
+                onClick={() => navigate('/leave')}
+                className="text-[13px] text-primary font-semibold flex items-center gap-0.5"
+              >
+                View All <ChevronRight size={14} />
+              </button>
+            </div>
+            <LeaveCard
+              request={recentLeave}
+              isLoading={leaveLoading}
+              cancelling={leaveCancelling}
+              onCancel={cancelLeave}
+              onNavigate={navigate}
+            />
+          </div>
+        )}
 
         {/* ── Announcements ── */}
         <div>
@@ -527,4 +571,134 @@ function AnnouncementCard({ ann }: { ann: Announcement }) {
       )}
     </div>
   )
+}
+
+function LeaveCard({
+  request,
+  isLoading,
+  cancelling,
+  onCancel,
+  onNavigate,
+}: {
+  request: LeaveRequest | null | undefined
+  isLoading: boolean
+  cancelling: boolean
+  onCancel: (id: string) => void
+  onNavigate: (path: string) => void
+}) {
+  if (isLoading) {
+    return (
+      <div className="bg-surface rounded-card shadow-card p-4 flex items-center gap-3">
+        <Skeleton circle className="w-10 h-10 flex-shrink-0" />
+        <div className="flex-1"><Skeleton lines={2} /></div>
+      </div>
+    )
+  }
+
+  const fmtDate = (d: string) => {
+    const [, m, day] = d.split('-')
+    return `${+day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m - 1]}`
+  }
+
+  if (!request) {
+    return (
+      <button
+        onClick={() => onNavigate('/leave/new')}
+        className="w-full bg-surface rounded-card shadow-card p-4 flex items-center gap-3 active:scale-[0.99] transition-transform text-left"
+      >
+        <div className="w-10 h-10 rounded-inner bg-primary-light flex items-center justify-center flex-shrink-0">
+          <Calendar size={18} className="text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold text-text-primary">Outpass / Leave</p>
+          <p className="text-[12px] text-text-tertiary">Plan a trip or overnight stay</p>
+        </div>
+        <span className="text-[13px] text-primary font-semibold flex-shrink-0">Apply →</span>
+      </button>
+    )
+  }
+
+  const dest      = request.destination ?? 'Leave'
+  const dateRange = `${fmtDate(request.from_date)} – ${fmtDate(request.to_date)}`
+
+  if (request.status === 'pending') {
+    return (
+      <div
+        onClick={() => onNavigate('/leave')}
+        className="bg-surface rounded-card shadow-card p-4 cursor-pointer active:scale-[0.99] transition-transform"
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-inner bg-warning-light flex items-center justify-center flex-shrink-0">
+            <Calendar size={18} className="text-warning" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-semibold text-text-primary truncate">Going to {dest}</p>
+            <p className="text-[12px] text-text-tertiary">{dateRange}</p>
+          </div>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-warning-light text-warning flex-shrink-0">
+            Pending
+          </span>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCancel(request.id) }}
+            disabled={cancelling}
+            className="text-[13px] text-danger font-semibold disabled:opacity-50"
+          >
+            {cancelling ? 'Cancelling…' : 'Cancel Request'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (request.status === 'approved') {
+    return (
+      <div
+        onClick={() => onNavigate('/leave')}
+        className="bg-surface rounded-card shadow-card p-4 flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
+      >
+        <div className="w-10 h-10 rounded-inner bg-success-light flex items-center justify-center flex-shrink-0">
+          <Calendar size={18} className="text-success" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold text-text-primary truncate">Going to {dest}</p>
+          <p className="text-[12px] text-text-tertiary">{dateRange}</p>
+        </div>
+        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-success-light text-success flex-shrink-0">
+          Approved ✓
+        </span>
+      </div>
+    )
+  }
+
+  if (request.status === 'rejected') {
+    return (
+      <div
+        onClick={() => onNavigate('/leave/new')}
+        className="bg-surface rounded-card shadow-card p-4 cursor-pointer active:scale-[0.99] transition-transform"
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-inner bg-danger-light flex items-center justify-center flex-shrink-0">
+            <Calendar size={18} className="text-danger" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-semibold text-text-primary">Leave Request</p>
+            <p className="text-[12px] text-text-tertiary">{dateRange}</p>
+            {request.review_note && (
+              <p className="text-[12px] text-danger mt-0.5 line-clamp-1">{request.review_note}</p>
+            )}
+          </div>
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-pill bg-danger-light text-danger flex-shrink-0">
+            Rejected
+          </span>
+        </div>
+        <div className="mt-3 flex justify-end">
+          <span className="text-[13px] text-primary font-semibold">Apply Again →</span>
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }
