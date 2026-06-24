@@ -881,6 +881,44 @@ export type Database = {
           },
         ]
       }
+      mess_settings: {
+        Row: {
+          cutoff_time: string   // "HH:MM:SS" e.g. "07:30:00"
+          enabled: boolean
+          end_time: string      // "HH:MM:SS"
+          hostel_id: string
+          id: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          start_time: string    // "HH:MM:SS"
+        }
+        Insert: {
+          cutoff_time: string
+          enabled?: boolean
+          end_time: string
+          hostel_id: string
+          id?: string
+          meal_type: Database["public"]["Enums"]["meal_type"]
+          start_time: string
+        }
+        Update: {
+          cutoff_time?: string
+          enabled?: boolean
+          end_time?: string
+          hostel_id?: string
+          id?: string
+          meal_type?: Database["public"]["Enums"]["meal_type"]
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mess_settings_hostel_id_fkey"
+            columns: ["hostel_id"]
+            isOneToOne: false
+            referencedRelation: "hostels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
