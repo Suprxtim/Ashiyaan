@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Bell, LogOut, Users, AlertTriangle, IndianRupee,
   UtensilsCrossed, ChevronRight, CheckCircle2, Clock, Flame, ScanLine,
-  Building2, TrendingUp, Timer, UserCheck,
+  Building2, TrendingUp, Timer, UserCheck, Phone,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
@@ -17,7 +17,7 @@ import {
   type GateTripMovement,
 } from '@/services/manager.service'
 import { getMessSettings, getTodaysMealCounts, getCurrentMeal } from '@/services/mess.service'
-import { getTripsCurrentlyOut, isOverdueTrip } from '@/services/gateTrip.service'
+import { getTripsCurrentlyOut, markTripReturnedByManager, isOverdueTrip } from '@/services/gateTrip.service'
 import { getMessFeedbackSummary, getRecentFeedbackComments } from '@/services/messFeedback.service'
 import { getStudentCount } from '@/services/student.service'
 import { formatTime, formatDate, formatCurrency, getInitials, getAvatarColor, timeAgo } from '@/lib/utils'
@@ -30,6 +30,14 @@ type ComplaintPriority = Database['public']['Enums']['complaint_priority']
 
 const MEAL_ORDER = ['breakfast', 'lunch', 'dinner'] as const
 
+function formatOverdue(expectedAt: string | null): string {
+  if (!expectedAt) return 'Past due'
+  const mins = Math.floor((Date.now() - new Date(expectedAt).getTime()) / 60000)
+  if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''}`
+  const hrs = Math.floor(mins / 60)
+  const rem = mins % 60
+  return rem > 0 ? `${hrs}h ${rem}m` : `${hrs}h`
+}
 
 const PRIORITY_ICON: Record<ComplaintPriority, React.ElementType> = {
   urgent: Flame,
@@ -128,7 +136,18 @@ export default function ManagerDashboardPage() {
     refetchInterval: 30_000,
   })
 
-  const overdueCount = useMemo(() => currentlyOut.filter(isOverdueTrip).length, [currentlyOut])
+  const overdueTrips = useMemo(() => currentlyOut.filter(isOverdueTrip), [currentlyOut])
+  const overdueCount = overdueTrips.length
+
+  const { mutate: markReturned } = useMutation({
+    mutationFn: (tripId: string) => markTripReturnedByManager(tripId),
+    onSuccess: () => {
+      toast.success('Marked as returned')
+      qc.invalidateQueries({ queryKey: ['trips-currently-out', hostelId] })
+      qc.invalidateQueries({ queryKey: ['manager-stats', hostelId] })
+    },
+    onError: () => toast.error('Failed to update'),
+  })
 
   const { mutate: approveMember, isPending: approving } = useMutation({
     mutationFn: (userId: string) => approveJoinRequest(userId),
@@ -201,6 +220,57 @@ export default function ManagerDashboardPage() {
       </div>
 
       <div className="px-4 pt-5 space-y-5">
+
+        {/* ── Overdue Students ── */}
+        {!isPg && overdueCount > 0 && (
+          <div className="bg-danger-light border border-danger/20 rounded-card p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={15} className="text-danger flex-shrink-0" />
+              <p className="text-[13px] font-bold text-danger">
+                {overdueCount} student{overdueCount !== 1 ? 's' : ''} haven't returned
+              </p>
+            </div>
+            {overdueTrips.map((trip) => {
+              const name        = trip.profiles?.full_name ?? 'Unknown'
+              const callNumber  = trip.profiles?.phone ?? trip.profiles?.parent_phone
+              const room        = trip.profiles?.room_number
+              return (
+                <div key={trip.id} className="flex items-center gap-3 bg-surface rounded-inner px-3 py-2.5">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0"
+                    style={{ backgroundColor: getAvatarColor(name) }}
+                  >
+                    {getInitials(name)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-text-primary truncate">{name}</p>
+                    <p className="text-[11px] text-danger font-medium">
+                      {formatOverdue(trip.expected_return_at)} overdue{room ? ` · Room ${room}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {callNumber ? (
+                      <a
+                        href={`tel:${callNumber}`}
+                        className="flex items-center gap-1 bg-primary text-white text-[12px] font-semibold px-2.5 py-1.5 rounded-btn active:scale-95 transition-transform"
+                      >
+                        <Phone size={12} /> Call
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-text-tertiary">No number</span>
+                    )}
+                    <button
+                      onClick={() => markReturned(trip.id)}
+                      className="text-[12px] font-semibold text-text-secondary border border-border rounded-btn px-2.5 py-1.5 active:scale-95 transition-transform"
+                    >
+                      Returned
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* ── Pending Members ── hidden when empty */}
         {(pendingLoading || pendingMembers.length > 0) && (
