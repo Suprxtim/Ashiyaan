@@ -27,11 +27,18 @@ export default function MessPage() {
     getMealState, getMenuItems,
     toggleMeal, togglingMealKey,
     savedThisMonth, optedOutMealsCount,
+    settings,
+    isCutoffPassed,
   } = useMessMenu()
 
-  const today        = new Date().toISOString().split('T')[0]
-  const tomorrow     = new Date(Date.now() + 86400000).toISOString().split('T')[0]
-  const tomorrowMenu = getMenuItems(tomorrow, 'dinner')
+  const today    = new Date().toISOString().split('T')[0]
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+
+  const MEAL_KEYS = ['breakfast', 'lunch', 'dinner'] as const
+  const firstEnabledKey = MEAL_KEYS.find(
+    (m) => settings.length === 0 || settings.find((s) => s.meal_type === m)?.enabled !== false
+  ) ?? 'breakfast'
+  const tomorrowMenu = getMenuItems(tomorrow, firstEnabledKey)
 
   const initials    = user ? getInitials(user.profile.full_name) : '?'
   const avatarColor = user ? getAvatarColor(user.profile.full_name) : '#1A3D3D'
@@ -152,32 +159,49 @@ export default function MessPage() {
             {selectedDate === today ? "Today's Attendance" : 'Attendance'}
           </p>
           <div className="bg-surface rounded-card shadow-card overflow-hidden">
-            {MEALS.map(({ key, label, time, Icon }, idx) => {
-              const isOn       = selectedMeals[key]
-              const isPastDate = isPast(selectedDate)
-              const isBusy     = togglingMealKey === `${selectedDate}-${key}`
-              return (
-                <div key={key}>
-                  {idx > 0 && <div className="h-px bg-border mx-4" />}
-                  <div className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${!isOn ? 'bg-danger-light/30' : ''}`}>
-                    <div className={`w-9 h-9 rounded-inner flex items-center justify-center flex-shrink-0 ${
-                      isOn ? 'bg-primary-light' : 'bg-surface-raised'
-                    }`}>
-                      <Icon size={18} className={isOn ? 'text-primary' : 'text-text-tertiary'} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold text-text-primary">{label}</p>
-                      <p className="text-[12px] text-text-tertiary">{time}</p>
-                    </div>
-                    <Toggle
-                      checked={isOn}
-                      disabled={isPastDate || isBusy}
-                      onChange={(val) => toggleMeal({ date: selectedDate, meal: key, value: val })}
-                    />
-                  </div>
-                </div>
+            {MEALS
+              .filter(({ key }) =>
+                settings.length === 0 || settings.find((s) => s.meal_type === key)?.enabled !== false
               )
-            })}
+              .map(({ key, label, time, Icon }, idx) => {
+                const isOn       = selectedMeals[key]
+                const isPastDate = isPast(selectedDate)
+                const isCutoff   = isCutoffPassed(selectedDate, key)
+                const isBusy     = togglingMealKey === `${selectedDate}-${key}`
+                const menuItems  = getMenuItems(selectedDate, key)
+                const setting    = settings.find((s) => s.meal_type === key)
+                return (
+                  <div key={key}>
+                    {idx > 0 && <div className="h-px bg-border mx-4" />}
+                    <div className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${!isOn ? 'bg-danger-light/30' : ''}`}>
+                      <div className={`w-9 h-9 rounded-inner flex items-center justify-center flex-shrink-0 ${
+                        isOn ? 'bg-primary-light' : 'bg-surface-raised'
+                      }`}>
+                        <Icon size={18} className={isOn ? 'text-primary' : 'text-text-tertiary'} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold text-text-primary">{label}</p>
+                        <p className="text-[12px] text-text-tertiary">{time}</p>
+                        {menuItems.length > 0 && (
+                          <p className="text-[12px] text-text-secondary mt-0.5 truncate">
+                            {menuItems.join(' · ')}
+                          </p>
+                        )}
+                        {isCutoff && setting && (
+                          <p className="text-[11px] text-text-tertiary mt-0.5">
+                            Opt-out closed at {setting.cutoff_time.slice(0, 5)}
+                          </p>
+                        )}
+                      </div>
+                      <Toggle
+                        checked={isOn}
+                        disabled={isPastDate || isCutoff || isBusy}
+                        onChange={(val) => toggleMeal({ date: selectedDate, meal: key, value: val })}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
           </div>
           {isPast(selectedDate) && (
             <p className="text-[12px] text-text-tertiary mt-2 text-center">
@@ -284,7 +308,7 @@ export default function MessPage() {
             <div className="bg-primary rounded-card overflow-hidden shadow-card">
               <div className="p-4">
                 <span className="bg-accent text-text-on-accent text-[10px] font-bold px-2.5 py-1 rounded-pill uppercase">
-                  Dinner Special
+                  {firstEnabledKey.charAt(0).toUpperCase() + firstEnabledKey.slice(1)} Special
                 </span>
                 <p className="text-white text-[16px] font-bold mt-2 leading-snug">
                   {tomorrowMenu[0]}

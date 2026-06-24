@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/auth.store'
-import { getWeekMenu, getWeekOptouts, upsertOptout, getActiveMessRate, getMonthOptouts } from '@/services/mess.service'
+import { getWeekMenu, getWeekOptouts, upsertOptout, getActiveMessRate, getMonthOptouts, getMessSettings } from '@/services/mess.service'
 
 function getWeekDates(offsetWeeks = 0) {
   const today = new Date()
@@ -49,6 +49,13 @@ export function useMessMenu() {
     enabled:  !!hostelId,
   })
 
+  const { data: settings = [] } = useQuery({
+    queryKey: ['mess-settings', hostelId],
+    queryFn:  () => getMessSettings(hostelId),
+    enabled:  !!hostelId,
+    staleTime: Infinity,
+  })
+
   // Monthly optouts — separate query so the savings banner always shows the full month
   const now = new Date()
   const { data: monthOptouts = [] } = useQuery({
@@ -90,6 +97,18 @@ export function useMessMenu() {
       return acc
     }, 0)
   }, [monthOptouts])
+
+  const todayStr = new Date().toLocaleDateString('en-CA')
+
+  function isCutoffPassed(date: string, meal: 'breakfast' | 'lunch' | 'dinner'): boolean {
+    if (date !== todayStr) return false
+    const s = settings.find((s) => s.meal_type === meal)
+    if (!s) return false
+    const now     = new Date()
+    const nowMins = now.getHours() * 60 + now.getMinutes()
+    const [h, m]  = s.cutoff_time.split(':').map(Number)
+    return nowMins >= h * 60 + m
+  }
 
   // Track which specific meal is in flight so siblings stay interactive
   const [togglingMealKey, setTogglingMealKey] = useState<string | null>(null)
@@ -138,5 +157,7 @@ export function useMessMenu() {
     rate,
     savedThisMonth,
     optedOutMealsCount,
+    settings,
+    isCutoffPassed,
   }
 }
