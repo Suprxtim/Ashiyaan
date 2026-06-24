@@ -402,7 +402,7 @@ export default function ManagerDashboardPage() {
               <div className="space-y-2.5">
                 {MEAL_ORDER.map((mealKey) => {
                   const s = messSettings.find((s) => s.meal_type === mealKey)
-                  if (s && !s.enabled) return null
+                  if (!s || !s.enabled) return null
                   const counts   = mealCounts?.[mealKey]
                   const isActive = current?.meal.meal_type === mealKey && current.status === 'active'
                   const isNext   = current?.meal.meal_type === mealKey && current.status === 'next'
