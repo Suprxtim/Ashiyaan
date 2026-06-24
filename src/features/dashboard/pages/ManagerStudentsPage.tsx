@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, ChevronRight, Users } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { getStudents } from '@/services/student.service'
-import { getTripsCurrentlyOut } from '@/services/gateTrip.service'
+import { getTripsCurrentlyOut, isOverdueTrip } from '@/services/gateTrip.service'
 import { getInitials, getAvatarColor } from '@/lib/utils'
 import { TopBar } from '@/components/layout/TopBar'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -29,15 +29,24 @@ export default function ManagerStudentsPage() {
     refetchInterval: 60_000,
   })
 
-  const outIds = useMemo(() => new Set(tripsOut.map((t) => t.user_id)), [tripsOut])
+  const outIds     = useMemo(() => new Set(tripsOut.map((t) => t.user_id)), [tripsOut])
+  const overdueIds = useMemo(
+    () => new Set(tripsOut.filter(isOverdueTrip).map((t) => t.user_id)),
+    [tripsOut],
+  )
 
   const filtered = useMemo(() => {
-    if (!q.trim()) return students
-    const lower = q.toLowerCase()
-    return students.filter((s) =>
-      s.full_name.toLowerCase().includes(lower)
-    )
-  }, [students, q])
+    const list = q.trim()
+      ? students.filter((s) => s.full_name.toLowerCase().includes(q.toLowerCase()))
+      : students
+    return [...list].sort((a, b) => {
+      const aOver = overdueIds.has(a.id)
+      const bOver = overdueIds.has(b.id)
+      if (aOver && !bOver) return -1
+      if (!aOver && bOver) return 1
+      return 0
+    })
+  }, [students, q, overdueIds])
 
   return (
     <div className="min-h-dvh bg-canvas pb-24">
@@ -90,6 +99,7 @@ export default function ManagerStudentsPage() {
               const initials    = getInitials(s.full_name)
               const avatarColor = getAvatarColor(s.full_name)
               const isOut       = outIds.has(s.id)
+              const isOverdue   = overdueIds.has(s.id)
               return (
                 <button
                   key={s.id}
@@ -110,11 +120,13 @@ export default function ManagerStudentsPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`px-2 py-0.5 rounded-pill text-[11px] font-semibold ${
-                      isOut
-                        ? 'bg-danger-light text-danger'
-                        : 'bg-success-light text-success'
+                      isOverdue
+                        ? 'bg-danger text-white'
+                        : isOut
+                          ? 'bg-warning-light text-warning'
+                          : 'bg-success-light text-success'
                     }`}>
-                      {isOut ? 'Out' : 'In'}
+                      {isOverdue ? 'Overdue' : isOut ? 'Out' : 'In'}
                     </span>
                     {s.room_number ? (
                       <span className="px-2 py-0.5 bg-primary-light rounded-pill text-[11px] font-semibold text-primary">

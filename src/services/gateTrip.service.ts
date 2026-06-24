@@ -14,7 +14,13 @@ export type TripScanResult = {
 }
 
 export type GateTripWithProfile = GateTrip & {
-  profiles: { full_name: string; room_number: string | null; avatar_url: string | null } | null
+  profiles: { full_name: string; room_number: string | null; avatar_url: string | null; phone: string | null } | null
+}
+
+export function isOverdueTrip(trip: GateTripWithProfile): boolean {
+  if (trip.status === 'overdue') return true
+  if (trip.expected_return_at && new Date(trip.expected_return_at) < new Date()) return true
+  return false
 }
 
 // ── Student functions ─────────────────────────────────────────
@@ -143,11 +149,19 @@ export async function guardCreateTrip(params: {
 export async function getTripsCurrentlyOut(hostelId: string): Promise<GateTripWithProfile[]> {
   const { data } = await supabase
     .from('gate_trips')
-    .select('*, profiles!user_id(full_name, room_number, avatar_url)')
+    .select('*, profiles!user_id(full_name, room_number, avatar_url, phone)')
     .eq('hostel_id', hostelId)
     .in('status', ['out', 'overdue'])
     .order('exit_at', { ascending: false })
   return (data ?? []) as GateTripWithProfile[]
+}
+
+export async function markTripReturnedByManager(tripId: string): Promise<void> {
+  const { error } = await supabase
+    .from('gate_trips')
+    .update({ status: 'returned', return_at: new Date().toISOString() })
+    .eq('id', tripId)
+  if (error) throw error
 }
 
 export async function getTodaysTripLog(hostelId: string): Promise<GateTripWithProfile[]> {
