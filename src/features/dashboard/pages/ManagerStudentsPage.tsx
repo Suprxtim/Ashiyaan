@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, ChevronRight, Users } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import { getStudents } from '@/services/student.service'
+import { getTripsCurrentlyOut } from '@/services/gateTrip.service'
 import { getInitials, getAvatarColor } from '@/lib/utils'
 import { TopBar } from '@/components/layout/TopBar'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -20,6 +21,15 @@ export default function ManagerStudentsPage() {
     queryFn:  () => getStudents(hostelId),
     enabled:  !!hostelId,
   })
+
+  const { data: tripsOut = [] } = useQuery({
+    queryKey: ['trips-currently-out', hostelId],
+    queryFn:  () => getTripsCurrentlyOut(hostelId),
+    enabled:  !!hostelId,
+    refetchInterval: 60_000,
+  })
+
+  const outIds = useMemo(() => new Set(tripsOut.map((t) => t.user_id)), [tripsOut])
 
   const filtered = useMemo(() => {
     if (!q.trim()) return students
@@ -79,6 +89,7 @@ export default function ManagerStudentsPage() {
             {filtered.map((s, i) => {
               const initials    = getInitials(s.full_name)
               const avatarColor = getAvatarColor(s.full_name)
+              const isOut       = outIds.has(s.id)
               return (
                 <button
                   key={s.id}
@@ -98,6 +109,13 @@ export default function ManagerStudentsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`px-2 py-0.5 rounded-pill text-[11px] font-semibold ${
+                      isOut
+                        ? 'bg-danger-light text-danger'
+                        : 'bg-success-light text-success'
+                    }`}>
+                      {isOut ? 'Out' : 'In'}
+                    </span>
                     {s.room_number ? (
                       <span className="px-2 py-0.5 bg-primary-light rounded-pill text-[11px] font-semibold text-primary">
                         Room {s.room_number}
